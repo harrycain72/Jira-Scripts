@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.onresolve</groupId>
+    <artifactId>scripts-repository</artifactId>
+    <version>1.0</version>
+
+    <organization>
+        <name>Adaptavist.com Ltd</name>
+        <url>http://www.adaptavist.com/</url>
+    </organization>
+
+    <name>scripts-repository</name>
+    <description>This is a container to store Script Runner scripts</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.atlassian.jira</groupId>
+            <artifactId>jira-api</artifactId>
+            <version>${jira.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.atlassian.jira</groupId>
+            <artifactId>jira-core</artifactId>
+            <version>${jira.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.atlassian.stash</groupId>
+            <artifactId>stash-api</artifactId>
+            <version>${stash.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <properties>
+        <jira.version>6.4.7</jira.version>
+        <stash.version>3.10.2</stash.version>
+        <amps.version>5.0.13</amps.version>
+    </properties>
+</project>
