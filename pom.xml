@@ -36,11 +36,17 @@
             <version>${stash.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy-all</artifactId>
+            <version>${groovy.version}</version>
+        </dependency>
     </dependencies>
 
     <properties>
         <jira.version>6.4.7</jira.version>
         <stash.version>3.10.2</stash.version>
         <amps.version>5.0.13</amps.version>
+        <groovy.version>2.4.3</groovy.version>
     </properties>
 </project>
