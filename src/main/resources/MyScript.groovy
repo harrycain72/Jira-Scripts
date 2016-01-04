@@ -1,7 +1,9 @@
+import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.component.ComponentAccessor
 import com.atlassian.jira.issue.MutableIssue
 import com.atlassian.jira.issue.fields.CustomField
 import com.opensymphony.workflow.WorkflowContext
+import com.atlassian.greenhopper.*
 
 //this method retrieves the current user
 def getCurrentUser() {
@@ -115,17 +117,19 @@ def addSubTask(String subTaskName, String subTaskDescription) {
     def check(String myvalue){
     def result = ""
 
-    if (checkIfSubTaskSummaryExists(myvalue)) {
-        result = 'vorhanden'
+        if (checkIfSubTaskSummaryExists(myvalue)) {
+            result = 'vorhanden'
+        }
+
+        else {
+
+         result = 'nicht vorhanden'
+        }
     }
 
-    else {
-
-     result = 'nicht vorhanden'
-    }
-}
 
 
+//Method retrieves the Fixed Version value of the current issue
 def getRelease(){
 
     MutableIssue missue = (MutableIssue)issue;
@@ -136,10 +140,39 @@ def getRelease(){
 
 
 
+def getSprintName(){
 
+    ArrayList<Sprint> list = (ArrayList<Sprint>) ComponentAccessor.getCustomFieldManager().getCustomFieldObjectByName("Sprint").getValue(issue);
+
+    def SprintName =""
+
+   if(list!=null){
+
+
+        list.each {
+
+            it.getName()
+
+            SprintName = it.getName()
+
+           // addComment(sprintName)
+
+        }
+    }
+
+
+   else{
+        //do something else
+
+    }
+
+    return SprintName
+}
 
 //addComment(getCurrentUser())
 //addComment(getCustomFieldValue("BusinessRequestor"))
 //addComment(check('rolipoli'))
 //addSubTask('b','my b description')
 addComment(getRelease())
+addComment(getSprintName())
+
