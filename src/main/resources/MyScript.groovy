@@ -1,4 +1,5 @@
 import com.atlassian.greenhopper.service.sprint.Sprint
+import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
 import com.atlassian.jira.issue.Issue
 import com.atlassian.jira.issue.ModifiedValue
@@ -8,6 +9,7 @@ import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
 import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
 import com.opensymphony.workflow.WorkflowContext
 import com.atlassian.greenhopper.*
+
 
 //this method retrieves the current user
 def getCurrentUser() {
@@ -147,14 +149,25 @@ def addSubTask(String subTaskName, String subTaskDescription) {
 //Method retrieves the Fixed Version value of the current issue
 def getRelease(){
 
-    MutableIssue missue = (MutableIssue)issue;
-    ArrayList val = (ArrayList)missue.getFixVersions()
-    def release = (String)val[0]
+    MutableIssue myMutableIssue = (MutableIssue)issue;
+    ArrayList myListReleases = (ArrayList)myMutableIssue.getFixVersions()
 
+    def release = ""
+
+    if(myListReleases!=null){
+
+
+
+        //we only consider getting the first item, even though more fix versions can be assigned to an issue
+        release = (String)myListReleases[0]
+
+    }
+
+    return release
 }
 
 
-
+// method reetrieves the assigend sprint of an issue
 def getSprintName(){
 
     ArrayList<Sprint> list = (ArrayList<Sprint>) ComponentAccessor.getCustomFieldManager().getCustomFieldObjectByName("Sprint").getValue(issue);
@@ -204,12 +217,43 @@ def setCustomFieldValue(Issue issue, String myValueToSave, CustomField myCustomF
 
 }
 
+// This method retrieves the issue based on its key
+def getIssueByKey(String myIssueKey){
+
+
+    MutableIssue myMutableIssue = ComponentAccessor.getIssueManager().getIssueByCurrentKey(myIssueKey);
+
+    return myMutableIssue
+}
+
+def getComponentName(Issue myIssue){
+
+    def MutableIssue myMutableIssue = (MutableIssue)myIssue
+
+    ArrayList<ProjectComponent> myComponents = (ArrayList<ProjectComponent>)myMutableIssue.getComponentObjects()
+
+    def myComponentName = ""
+
+    if (myComponents!=null){
+
+        //we only retrieve the first assigned component.
+        myComponentName = (String)myComponents[0].getName()
+
+    }
+
+
+    return myComponentName
+
+}
+
+
 //addComment(getCurrentUser())
 //addComment(getCustomFieldValue("BusinessRequestor"))
 //addComment(check('rolipoli'))
 //addSubTask('b','my b description')
-addComment(getRelease())
-addComment(getSprintName())
-setCustomFieldValue(issue,getRelease(),getCustomFieldByName('BusinessRequestor'))
-
+//addComment(getRelease())
+//addComment(getSprintName())
+//setCustomFieldValue(issue,getRelease(),getCustomFieldByName('BusinessRequestor'))
+//addComment(getComponentName(issue))
+//getComponentName(getIssueByKey('DEMO-1'))
 
