@@ -1,22 +1,34 @@
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
+import com.atlassian.jira.event.issue.IssueEvent
 import com.atlassian.jira.issue.Issue
 import com.atlassian.jira.issue.ModifiedValue
 import com.atlassian.jira.issue.MutableIssue
 import com.atlassian.jira.issue.fields.CustomField
 import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
 import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
+import com.atlassian.jira.plugin.webfragment.model.JiraHelper
 import com.opensymphony.workflow.WorkflowContext
 import com.atlassian.greenhopper.*
+import org.joda.time.DateTime
+
+import javax.servlet.http.HttpServletRequest
 
 
-//this method retrieves the current user
-def getCurrentUser() {
+//method retrieves the current user
+def getCurrentApplicationUser() {
     //determine current user
-    String currentUser = ((WorkflowContext) transientVars.get("context")).getCaller()
 
-    return currentUser
+    //Security
+    jac = ComponentAccessor.getJiraAuthenticationContext()
+
+    def CurrentUser
+
+    CurrentUser = jac.getUser()
+
+
+    return CurrentUser
 }
 
 //this method creates a comment
@@ -24,13 +36,11 @@ def addComment(String myComment) {
 
     cmm = ComponentAccessor.getCommentManager()
 
-    //determine current user
-    String currentUser = getCurrentUser()
-
-    //CommentMngr
-    cmm.create(issue,currentUser,myComment,true)
+    //cmm.create(issue,getCurrentApplicationUser(),myComment,true)
+    cmm.create(getCurrentIssueAfterEvent(),getCurrentApplicationUser(),myComment,true)
     issue.store()
 }
+
 
 //this method gets the value of a customfield value by its name
 def getCustomFieldValue(String myCustomField) {
@@ -131,7 +141,7 @@ def addSubTask(String subTaskName, String subTaskDescription) {
 }
 
 
-    def check(String myvalue){
+def check(String myvalue){
     def result = ""
 
         if (checkIfSubTaskSummaryExists(myvalue)) {
@@ -165,7 +175,6 @@ def getRelease(){
 
     return release
 }
-
 
 // method reetrieves the assigend sprint of an issue
 def getSprintName(){
@@ -246,14 +255,29 @@ def getComponentName(Issue myIssue){
 
 }
 
+def getTodaysDate(){
+    def today = new Date()
+    return today.toString()
+}
+
+//retrieves the current issue i.e. for a listener
+def getCurrentIssueAfterEvent(){
+
+    def event = event as IssueEvent
+    event.getIssue()
+}
+
+//****************
 
 //addComment(getCurrentUser())
 //addComment(getCustomFieldValue("BusinessRequestor"))
-//addComment(check('rolipoli'))
+//addComment('great comment')
 //addSubTask('b','my b description')
 //addComment(getRelease())
 //addComment(getSprintName())
 //setCustomFieldValue(issue,getRelease(),getCustomFieldByName('BusinessRequestor'))
 //addComment(getComponentName(issue))
 //getComponentName(getIssueByKey('DEMO-1'))
+addComment(getTodaysDate())
+
 
