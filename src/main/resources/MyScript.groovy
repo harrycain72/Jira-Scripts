@@ -1,7 +1,11 @@
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.component.ComponentAccessor
+import com.atlassian.jira.issue.Issue
+import com.atlassian.jira.issue.ModifiedValue
 import com.atlassian.jira.issue.MutableIssue
 import com.atlassian.jira.issue.fields.CustomField
+import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
+import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
 import com.opensymphony.workflow.WorkflowContext
 import com.atlassian.greenhopper.*
 
@@ -26,7 +30,7 @@ def addComment(String myComment) {
     issue.store()
 }
 
-//this method gets the value of a customfield by its name
+//this method gets the value of a customfield value by its name
 def getCustomFieldValue(String myCustomField) {
 
     cfm = ComponentAccessor.getCustomFieldManager()
@@ -35,6 +39,17 @@ def getCustomFieldValue(String myCustomField) {
     return  (String)customField.getValue(issue);
 
 }
+
+// this method returns a customfield
+def getCustomFieldByName(String myCustomFieldName) {
+
+    cfm = ComponentAccessor.getCustomFieldManager()
+
+    CustomField myCustomField = cfm.getCustomFieldObjectByName(myCustomFieldName);
+    return  myCustomField
+
+}
+
 
 //this method gets a list of subtasks of an issue, retrieves their summary and checks if a defined one exists in this list.
 def checkIfSubTaskSummaryExists(String mySummaryToBeChecked) {
@@ -169,10 +184,32 @@ def getSprintName(){
     return SprintName
 }
 
+def setCustomFieldValue(Issue issue, String myValueToSave, CustomField myCustomField){
+
+    def MutableIssue myMutableIssue = (MutableIssue)issue
+
+    myMutableIssue.setCustomFieldValue(myCustomField,myValueToSave)
+
+
+    Map<String,ModifiedValue> modifiedfields = myMutableIssue.getModifiedFields()
+
+    FieldLayoutItem myFieldLayoutItem = ComponentAccessor.getFieldLayoutManager().getFieldLayout(myMutableIssue).getFieldLayoutItem(myCustomField)
+
+    DefaultIssueChangeHolder myDefaultIssueChangeHolder = new DefaultIssueChangeHolder()
+
+    final ModifiedValue myModifiedValue = modifiedfields.get(myCustomField.getId())
+
+    myCustomField.updateValue(myFieldLayoutItem,myMutableIssue,myModifiedValue,myDefaultIssueChangeHolder)
+
+
+}
+
 //addComment(getCurrentUser())
 //addComment(getCustomFieldValue("BusinessRequestor"))
 //addComment(check('rolipoli'))
 //addSubTask('b','my b description')
 addComment(getRelease())
 addComment(getSprintName())
+setCustomFieldValue(issue,getRelease(),getCustomFieldByName('BusinessRequestor'))
+
 
