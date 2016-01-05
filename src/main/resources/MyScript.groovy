@@ -1,4 +1,5 @@
 import com.atlassian.greenhopper.service.sprint.Sprint
+import com.atlassian.jira.ComponentManager
 import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
 import com.atlassian.jira.event.issue.IssueEvent
@@ -8,13 +9,9 @@ import com.atlassian.jira.issue.MutableIssue
 import com.atlassian.jira.issue.fields.CustomField
 import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
 import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
-import com.atlassian.jira.plugin.webfragment.model.JiraHelper
-import com.opensymphony.workflow.WorkflowContext
 import com.atlassian.greenhopper.*
-import org.joda.time.DateTime
-
-import javax.servlet.http.HttpServletRequest
-
+import com.atlassian.jira.issue.util.IssueChangeHolder
+import com.atlassian.jira.project.version.VersionManager
 
 //method retrieves the current user
 def getCurrentApplicationUser() {
@@ -37,7 +34,7 @@ def addComment(String myComment) {
     cmm = ComponentAccessor.getCommentManager()
 
     //cmm.create(issue,getCurrentApplicationUser(),myComment,true)
-    cmm.create(getCurrentIssueAfterEvent(),getCurrentApplicationUser(),myComment,true)
+    cmm.create(getCurrentIssue('EV'),getCurrentApplicationUser(),myComment,true)
     issue.store()
 }
 
@@ -261,11 +258,66 @@ def getTodaysDate(){
 }
 
 //retrieves the current issue i.e. for a listener
-def getCurrentIssueAfterEvent(){
+def getCurrentIssue(String flag){
 
-    def event = event as IssueEvent
-    event.getIssue()
+    def myIssue
+
+    if(flag == "WF"){
+      myIssue = issue
+    }
+
+    if(flag == "EV"){
+        def event = event as IssueEvent
+        myIssue = event.getIssue()
+    }
+
+    return myIssue
 }
+
+
+def handleIssueEvent(){
+
+
+    def test = ""
+
+    try {
+
+        /*Gather changed field at the Issue Updated*/
+        def field = event.getChangeLog().getRelated('ChildChangeItem').find{it.field == "BusinessRequestor"};
+
+
+
+        if(field != null ){
+
+
+            def old_field_value = field.oldstring
+
+
+            def new_field_value = field.newstring
+
+
+            // put her what ever should be done
+
+            addComment("old field value " + old_field_value + "   new field value: " + new_field_value)
+
+        }
+
+
+        else {
+
+         test = "NULL"
+
+        }
+
+    }
+    catch (all){
+
+    }
+
+
+
+}
+
 
 //****************
 
@@ -278,6 +330,7 @@ def getCurrentIssueAfterEvent(){
 //setCustomFieldValue(issue,getRelease(),getCustomFieldByName('BusinessRequestor'))
 //addComment(getComponentName(issue))
 //getComponentName(getIssueByKey('DEMO-1'))
-addComment(getTodaysDate())
-
+//addComment(getTodaysDate())
+//addComment("one more comment")
+handleIssueEvent()
 
