@@ -1,5 +1,4 @@
 import com.atlassian.greenhopper.service.sprint.Sprint
-import com.atlassian.jira.ComponentManager
 import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
 import com.atlassian.jira.event.issue.IssueEvent
@@ -8,13 +7,11 @@ import com.atlassian.jira.issue.ModifiedValue
 import com.atlassian.jira.issue.MutableIssue
 import com.atlassian.jira.issue.fields.CustomField
 import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
+import com.atlassian.jira.issue.label.LabelManager
 import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
-import com.atlassian.greenhopper.*
-import com.atlassian.jira.issue.util.IssueChangeHolder
-import com.atlassian.jira.project.version.VersionManager
 
 //method retrieves the current user
-def getCurrentApplicationUser() {
+def getCurrentUser() {
     //determine current user
 
     //Security
@@ -29,18 +26,19 @@ def getCurrentApplicationUser() {
 }
 
 //this method creates a comment
-def addComment(String myComment) {
+def addComment(Issue issue, String myComment) {
 
     cmm = ComponentAccessor.getCommentManager()
 
-    //cmm.create(issue,getCurrentApplicationUser(),myComment,true)
-    cmm.create(getCurrentIssue('EV'),getCurrentApplicationUser(),myComment,true)
-    issue.store()
+    //cmm.create(issue,getCurrentUser(),myComment,true)
+    cmm.create(issue,getCurrentUser(),myComment,true)
+
+
 }
 
 
 //this method gets the value of a customfield value by its name
-def getCustomFieldValue(String myCustomField) {
+def getCustomFieldValue(Issue issue, String myCustomField) {
 
     cfm = ComponentAccessor.getCustomFieldManager()
 
@@ -50,7 +48,7 @@ def getCustomFieldValue(String myCustomField) {
 }
 
 // this method returns a customfield
-def getCustomFieldByName(String myCustomFieldName) {
+def getCustomField(String myCustomFieldName) {
 
     cfm = ComponentAccessor.getCustomFieldManager()
 
@@ -61,7 +59,7 @@ def getCustomFieldByName(String myCustomFieldName) {
 
 
 //this method gets a list of subtasks of an issue, retrieves their summary and checks if a defined one exists in this list.
-def checkIfSubTaskSummaryExists(String mySummaryToBeChecked) {
+def checkIfSubTaskSummaryExists(Issue issue, String mySummaryToBeChecked) {
 
     //we create a list of all subtasks for the active issue
     def subTasks = issue.getSubTaskObjects()
@@ -83,7 +81,7 @@ def checkIfSubTaskSummaryExists(String mySummaryToBeChecked) {
 
 
 //this method is responsible for the creation of subTask
-def addSubTask(String subTaskName, String subTaskDescription) {
+def addSubTask(Issue issue, String subTaskName, String subTaskDescription) {
 
     //Instanzierung der factories
     isf = ComponentAccessor.getIssueFactory()
@@ -91,7 +89,7 @@ def addSubTask(String subTaskName, String subTaskDescription) {
     //IssueFactory: we create her a generic issue
     def issueObject = isf.getIssue()
 
-    issueObject.setProject(issue.getProject())
+    issueObject.setProjectObject(issue.getProjectObject())
 
     //Possible IssueTypeValues are 10001 story, 10101 subtask, 10102 bug, 10000 epic
     // old value 5 ?
@@ -109,7 +107,7 @@ def addSubTask(String subTaskName, String subTaskDescription) {
     //here we check if the value for the summary of a subtasks has already been used. We do not want to have
     //two subtasks with the same value.
     def toBeCreatedSubTaskSummary = subTaskName + ': user story ' + issue.getSummary()
-    checkResult = checkIfSubTaskSummaryExists(toBeCreatedSubTaskSummary)
+    checkResult = checkIfSubTaskSummaryExists(issue,toBeCreatedSubTaskSummary)
 
     // we only create our new SubTask if the the value of summary does not exist in any already defined subtask
     if (!checkResult) {
@@ -118,46 +116,35 @@ def addSubTask(String subTaskName, String subTaskDescription) {
         ism = ComponentAccessor.getIssueManager()
 
         //Security
-        jac = ComponentAccessor.getJiraAuthenticationContext()
+        //jac = ComponentAccessor.getJiraAuthenticationContext()
 
-        subTask = ism.createIssueObject(jac.getUser(), issueObject)
+        currentUser = getCurrentUser()
+
+        subTask = ism.createIssueObject(currentUser, issueObject)
 
 
         //the created subtask is linked to the issue.This is done through the SubTaskMngr
 
         stm = ComponentAccessor.getSubTaskManager()
-        stm.createSubTaskIssueLink(issue, subTask, jac.getUser())
+        stm.createSubTaskIssueLink(issue, subTask, currentUser)
 
 
         // disable the watcher using the WatcherManager
         wtm = ComponentAccessor.getWatcherManager()
-        wtm.stopWatching(jac.getUser(), subTask)
+        wtm.stopWatching(currentUser, subTask)
 
     }
 
 }
 
 
-def check(String myvalue){
-    def result = ""
 
-        if (checkIfSubTaskSummaryExists(myvalue)) {
-            result = 'vorhanden'
-        }
+//Method retrieves the Fixed Version name of the current issue
+def getReleaseName(Issue issue){
 
-        else {
+   // MutableIssue myMutableIssue = (MutableIssue)issue;// Flag EV is necessary to be able to be triggered by an event / listener
 
-         result = 'nicht vorhanden'
-        }
-    }
-
-
-
-//Method retrieves the Fixed Version value of the current issue
-def getRelease(){
-
-    MutableIssue myMutableIssue = (MutableIssue)issue;
-    ArrayList myListReleases = (ArrayList)myMutableIssue.getFixVersions()
+    ArrayList myListReleases = (ArrayList)issue.getFixVersions()
 
     def release = ""
 
@@ -174,28 +161,19 @@ def getRelease(){
 }
 
 // method reetrieves the assigend sprint of an issue
-def getSprintName(){
+def getSprintName(Issue issue){
 
-    ArrayList<Sprint> list = (ArrayList<Sprint>) ComponentAccessor.getCustomFieldManager().getCustomFieldObjectByName("Sprint").getValue(issue);
+    ArrayList<Sprint> listOfSprints = (ArrayList<Sprint>) ComponentAccessor.getCustomFieldManager().getCustomFieldObjectByName("Sprint").getValue(issue);
 
     def SprintName =""
 
-   if(list!=null){
+   if(listOfSprints!=null){
 
-
-        list.each {
-
-            it.getName()
-
-            SprintName = it.getName()
-
-           // addComment(sprintName)
-
+       //we only consider getting the first sprint in the list, event though more sprints can be assigened to an issue
+            SprintName = (String)listOfSprints[0].getName()
         }
-    }
 
-
-   else{
+   else {
         //do something else
 
     }
@@ -220,8 +198,34 @@ def setCustomFieldValue(Issue issue, String myValueToSave, CustomField myCustomF
 
     myCustomField.updateValue(myFieldLayoutItem,myMutableIssue,myModifiedValue,myDefaultIssueChangeHolder)
 
+}
+
+def setLabel(Issue issue, String newValue, String fieldName){
+
+    LabelManager labelManager = ComponentAccessor.getComponent(LabelManager.class)
+    customFieldManager = ComponentAccessor.getCustomFieldManager()
+
+    CustomField customField = customFieldManager.getCustomFieldObjectByName(fieldName)
+
+
+    Set<String> set = convertToSetForLabels((String) newValue)
+
+
+    labelManager.setLabels(getCurrentUser(),issue.getId(),customField.getIdAsLong(),set,false,true)
 
 }
+
+def convertToSetForLabels(String newValue){
+
+    Set<String> set = new HashSet<String>();
+    StringTokenizer st = new StringTokenizer(newValue,"  ")
+    while(st.hasMoreTokens()) {
+        set.add(st.nextToken())
+    }
+    return set
+
+}
+
 
 // This method retrieves the issue based on its key
 def getIssueByKey(String myIssueKey){
@@ -263,7 +267,7 @@ def getCurrentIssue(String flag){
     def myIssue
 
     if(flag == "WF"){
-      myIssue = issue
+      myIssue =(Issue)issue
     }
 
     if(flag == "EV"){
@@ -275,62 +279,120 @@ def getCurrentIssue(String flag){
 }
 
 
-def handleIssueEvent(){
 
 
-    def test = ""
+def setSprintName(Issue issue){
 
-    try {
+    def sprint = getSprintName(issue)
 
-        /*Gather changed field at the Issue Updated*/
-        def field = event.getChangeLog().getRelated('ChildChangeItem').find{it.field == "BusinessRequestor"};
+    def release = getReleaseName(issue)
+
+    def sprintName
+
+    if(sprint != "" && release != null){
+
+        sprintName = release + "_" + sprint
+    }
+
+    if(sprint != "" && release == null) {
+
+        sprintName = "_"+sprint
+    }
+
+    if(sprint == "" && release != null) {
+
+        sprintName = ""
+    }
+
+    return sprintName
+}
 
 
+def main(Issue issue){
 
-        if(field != null ){
+    def myList = ["Fix Version","Sprint","assignee"]
+
+    def fix_version_update
+    def sprint_update
+    def assignee_update
 
 
-            def old_field_value = field.oldstring
+    //def test = event.getChangeLog().getRelated('ChildChangeItem')
 
+    for (item in myList) {
 
-            def new_field_value = field.newstring
+        def field = event.getChangeLog().getRelated('ChildChangeItem').find{it.field == item};
 
+        if (field != null && item == "Fix Version"){
+            fix_version_update = true
 
-            // put her what ever should be done
-
-            addComment("old field value " + old_field_value + "   new field value: " + new_field_value)
+            setLabel(issue,getReleaseName(issue),".Release")
+            setLabel(issue,setSprintName(issue),".Sprint")
 
         }
 
+        else if (field != null && item == "Sprint"){
+            sprint_update = true
 
-        else {
-
-         test = "NULL"
-
+            setLabel(issue,setSprintName(issue),".Sprint")
         }
 
-    }
-    catch (all){
+        else if (field != null && item == "assignee") {
+            assignee_update = true
 
-    }
+            def issueType = issue.getIssueTypeObject().getName()
+            def issueSummary = issue.getSummary()
+            def keyWord = issueSummary.substring(0,3)
 
+
+
+                if(issueType == "Unteraufgabe" && keyWord == "DEV"){
+
+                    def newAssignee = field.newstring
+
+                    if (newAssignee == null) {newAssignee = ""}
+
+                    setLabel(issue,newAssignee,".Developer")
+                }
+
+                println ""
+        }
+
+       else println ""
+    }
 
 
 }
 
-
 //****************
 
-//addComment(getCurrentUser())
-//addComment(getCustomFieldValue("BusinessRequestor"))
-//addComment('great comment')
-//addSubTask('b','my b description')
-//addComment(getRelease())
-//addComment(getSprintName())
-//setCustomFieldValue(issue,getRelease(),getCustomFieldByName('BusinessRequestor'))
-//addComment(getComponentName(issue))
-//getComponentName(getIssueByKey('DEMO-1'))
-//addComment(getTodaysDate())
-//addComment("one more comment")
-handleIssueEvent()
+//addComment(getCurrentIssue("EV"),'great comment')
 
+//addComment(getCurrentIssue("EV"),getCurrentUser().getName())
+
+//addComment(getCurrentIssue("EV"),getCustomFieldValue(getCurrentIssue("EV"),".BusinessRequestor"))
+
+//addSubTask(getCurrentIssue("WF"),'b','my b description')
+
+//addComment(getCurrentIssue("EV"),getReleaseName(getCurrentIssue("EV")))
+
+//addComment(getCurrentIssue("EV"),getSprintName(getCurrentIssue("EV")))
+
+//setCustomFieldValue(getCurrentIssue("EV"),getReleaseName(getCurrentIssue("EV")),getCustomField('.BusinessRequestor'))
+
+//addComment(getCurrentIssue("EV"),getComponentName(getCurrentIssue("EV")))
+
+//addComment(getIssueByKey("DEMO-1"),getComponentName(getCurrentIssue("EV")))
+
+//addComment(getCurrentIssue("EV"),getTodaysDate())
+
+
+//setCustomFieldValue(getCurrentIssue("EV"),"R16.3",getCustomField(".Release"))
+
+
+
+
+
+
+
+main(getCurrentIssue("EV"))
