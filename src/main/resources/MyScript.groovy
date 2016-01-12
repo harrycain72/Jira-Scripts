@@ -3,12 +3,16 @@ import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
 import com.atlassian.jira.event.issue.IssueEvent
 import com.atlassian.jira.issue.Issue
+import com.atlassian.jira.issue.IssueManager
 import com.atlassian.jira.issue.ModifiedValue
 import com.atlassian.jira.issue.MutableIssue
 import com.atlassian.jira.issue.fields.CustomField
 import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
 import com.atlassian.jira.issue.label.LabelManager
+import com.atlassian.jira.issue.search.SearchProvider
 import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
+import com.atlassian.jira.jql.parser.JqlQueryParser
+import com.atlassian.jira.web.bean.PagerFilter
 
 //method retrieves the current user
 def getCurrentUser() {
@@ -308,6 +312,30 @@ def setSprintName(Issue issue){
 }
 
 
+def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth){
+
+    def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
+    def searchProvider = ComponentAccessor.getComponent(SearchProvider)
+    def issueManager = ComponentAccessor.getIssueManager()
+    def user = getCurrentUser()
+    def issueId = issue.getKey()
+
+
+
+
+// edit this query to suit
+    def query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ") AND issuetype =" + issueType + "  ORDER BY issuetype DESC")
+
+    def issues = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter())
+
+    return issues
+
+
+}
+
+
+
+
 def main(Issue issue){
 
     def myList = ["Fix Version","Sprint","assignee"]
@@ -350,9 +378,36 @@ def main(Issue issue){
 
                     def newAssignee = field.newstring
 
+
+                    // set for this issue of type sub task the customfield .Developer t
                     if (newAssignee == null) {newAssignee = ""}
 
                     setLabel(issue,newAssignee,".Developer")
+
+
+
+                            //set for the parent issue of type story the customfield .Developer
+
+                            // get my parent. For this look in the network of linked issues, from my point of view 1 level deep
+                            def queryResult = getIssuesOfNetwork(issue,"story","1").getIssues()
+
+                            //we need the IssueManager in order to create the issue of the the result of the query
+                            IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+                        //every sub task should have only one parent
+                        if (queryResult.size()== 1){
+
+
+                            //we create an issue
+                            def myIssue = issueManager.getIssueObject(queryResult.get(0).getId())
+
+                            def issueKey = myIssue.getKey()
+
+                            setLabel(myIssue,newAssignee,".Developer")
+                        }
+
+
+
                 }
 
                 println ""
@@ -363,6 +418,14 @@ def main(Issue issue){
 
 
 }
+
+
+
+
+// EV = Verwendung in Listerners, WV = Verwendung in Workflows
+
+main(getCurrentIssue("EV"))
+
 
 //****************
 
@@ -386,13 +449,8 @@ def main(Issue issue){
 
 //addComment(getCurrentIssue("EV"),getTodaysDate())
 
-
 //setCustomFieldValue(getCurrentIssue("EV"),"R16.3",getCustomField(".Release"))
 
+//getIssuesOfNetwork(getCurrentIssue("EV"),"story","1")
 
-
-
-
-
-
-main(getCurrentIssue("EV"))
+//setLabel(getIssueByKey("DEMO-1"),"roland",".Developer")
