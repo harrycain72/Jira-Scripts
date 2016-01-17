@@ -219,13 +219,44 @@ def setLabel(Issue issue, String newValue, String fieldName){
 
 }
 
+// sets n labels for a specific issue
+def setLabels(Issue issue, Set labels, String fieldName){
+
+    LabelManager labelManager = ComponentAccessor.getComponent(LabelManager.class)
+    customFieldManager = ComponentAccessor.getCustomFieldManager()
+
+    CustomField customField = customFieldManager.getCustomFieldObjectByName(fieldName)
+
+
+    labelManager.setLabels(getCurrentUser(),issue.getId(),customField.getIdAsLong(),labels,false,true)
+
+}
+
+
 def convertToSetForLabels(String newValue){
 
     Set<String> set = new HashSet<String>();
-    StringTokenizer st = new StringTokenizer(newValue,"  ")
+    StringTokenizer st = new StringTokenizer(newValue," ")
+
+    String myValue = ""
+
+
     while(st.hasMoreTokens()) {
-        set.add(st.nextToken())
+        if(myValue == ""){
+
+            myValue=myValue+st.nextToken()
+        }
+
+        else {
+            myValue=myValue + "_" + st.nextToken()
+        }
+
+
     }
+
+    set.add(myValue)
+
+
     return set
 
 }
@@ -285,7 +316,7 @@ def getCurrentIssue(String flag){
 
 
 
-def setSprintName(Issue issue){
+def getSprintAndReleaseName(Issue issue){
 
     def sprint = getSprintName(issue)
 
@@ -312,19 +343,32 @@ def setSprintName(Issue issue){
 }
 
 
-def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth){
+def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,String linkType){
 
     def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
     def searchProvider = ComponentAccessor.getComponent(SearchProvider)
     def issueManager = ComponentAccessor.getIssueManager()
     def user = getCurrentUser()
     def issueId = issue.getKey()
+    def query
 
 
 
 
-// edit this query to suit
-    def query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ") AND issuetype =" + issueType + "  ORDER BY issuetype DESC")
+
+
+// query for sub tasks without linktype
+
+    if(linkType==""){
+
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ") AND issuetype =" + issueType + "  ORDER BY issuetype DESC")
+
+    }
+
+
+    else {
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"" + linkType + "\") AND issuetype =" + issueType + "  ORDER BY issuetype DESC")
+    }
 
     def issues = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter())
 
@@ -335,9 +379,69 @@ def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth){
 
 
 
+def setReleaseAndSprintNamesInBusinesRequest(Issue issue,String customFieldName){
+
+
+    //we need the IssueManager in order to create the issue of the the result of the query
+    IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+    //get all stories linked by relates to
+    def stories = getIssuesOfNetwork(issue,"Story","3","relates to").getIssues()
+
+    //get the business request. We should only have one business request linked to the stories
+    def businessRequests= getIssuesOfNetwork(issue,"Request","3","relates to").getIssues()
+
+    //get the sprint name for each story. The names must be updated as labels in the business request
+
+    Set<String> sprintNamesSet = new HashSet<String>()
+
+
+    stories.each {
+
+        //we create an issue
+        def myIssue = issueManager.getIssueObject(it.getId())
+
+        def mySprintAndReleaseName = getSprintAndReleaseName(myIssue)
+
+        sprintNamesSet.add(mySprintAndReleaseName)
+
+    }
+
+
+
+    //we should have only one common business request for all found stories
+    if (businessRequests.size()== 1){
+
+
+        //we create an issue
+        def myBusinessRequest = issueManager.getIssueObject(businessRequests.get(0).getId())
+
+        setLabels(myBusinessRequest,sprintNamesSet,customFieldName)
+    }
+
+
+    // not nice
+    println ""
+
+    // end of new stuff
+}
+
+
 
 def main(Issue issue){
 
+    //begin customizing
+
+    def customFieldNameRelease = ".Release"
+    def customFieldNameSprint = ".Sprint"
+    def customFieldNameSprintAndReleaseNames = ".Sprints"
+    def customFieldNameDeveloper = ".Developer"
+    def nameOfPrefix = "DEV"
+
+
+    //end customizing
+
+    // These names should be standard in JIRA and not change from release to release
     def myList = ["Fix Version","Sprint","assignee"]
 
     def fix_version_update
@@ -354,16 +458,34 @@ def main(Issue issue){
         if (field != null && item == "Fix Version"){
             fix_version_update = true
 
-            setLabel(issue,getReleaseName(issue),".Release")
-            setLabel(issue,setSprintName(issue),".Sprint")
+            setLabel(issue,getReleaseName(issue),customFieldNameRelease)
+            setLabel(issue,getSprintAndReleaseName(issue),customFieldNameSprint)
+
+            //if the release is changed but the sprint remains - which should not really be the case
+            //then we must make sure, that this change is also available for the relevant business requests
+
+            setReleaseAndSprintNamesInBusinesRequest(issue,customFieldNameSprintAndReleaseNames)
 
         }
 
         else if (field != null && item == "Sprint"){
-            sprint_update = true
 
-            setLabel(issue,setSprintName(issue),".Sprint")
+
+            // set the name of the sprint name.
+
+
+                setLabel(issue,getSprintAndReleaseName(issue),customFieldNameSprint)
+
+            // every time a sprint is added or changed, we have to update the issue business request
+            // with all sprint names of all stories as labels
+
+
+                setReleaseAndSprintNamesInBusinesRequest(issue,customFieldNameSprintAndReleaseNames)
+
         }
+
+
+
 
         else if (field != null && item == "assignee") {
             assignee_update = true
@@ -374,7 +496,7 @@ def main(Issue issue){
 
 
 
-                if(issueType == "Unteraufgabe" && keyWord == "DEV"){
+                if(issueType == "Unteraufgabe" && keyWord == nameOfPrefix){
 
                     def newAssignee = field.newstring
 
@@ -382,14 +504,16 @@ def main(Issue issue){
                     // set for this issue of type sub task the customfield .Developer t
                     if (newAssignee == null) {newAssignee = ""}
 
-                    setLabel(issue,newAssignee,".Developer")
+                    setLabel(issue,newAssignee,customFieldNameDeveloper)
+
 
 
 
                             //set for the parent issue of type story the customfield .Developer
 
                             // get my parent. For this look in the network of linked issues, from my point of view 1 level deep
-                            def queryResult = getIssuesOfNetwork(issue,"story","1").getIssues()
+                            // for a sub task the link type to its parent should be left blank
+                            def queryResult = getIssuesOfNetwork(issue,"story","1","").getIssues()
 
                             //we need the IssueManager in order to create the issue of the the result of the query
                             IssueManager issueManager = ComponentAccessor.getIssueManager()
@@ -403,7 +527,7 @@ def main(Issue issue){
 
                             def issueKey = myIssue.getKey()
 
-                            setLabel(myIssue,newAssignee,".Developer")
+                            setLabel(myIssue,newAssignee,customFieldNameDeveloper)
                         }
 
 
