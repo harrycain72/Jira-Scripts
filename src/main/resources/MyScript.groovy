@@ -161,6 +161,8 @@ def getReleaseName(Issue issue){
 
     }
 
+    if(release == null) { release = "-"}
+
     return release
 }
 
@@ -336,7 +338,7 @@ def getSprintAndReleaseName(Issue issue){
 
     if(sprint == "" && release != null) {
 
-        sprintName = ""
+        sprintName = "-"
     }
 
     return sprintName
@@ -436,24 +438,64 @@ def main(Issue issue){
     def customFieldNameSprint = ".Sprint"
     def customFieldNameSprintAndReleaseNames = ".Sprints"
     def customFieldNameDeveloper = ".Developer"
+    //def FieldNameComponent =
     def nameOfPrefix = "DEV"
+    def issueTypeNameSubTasks = "Unteraufgabe"
+    def issueTypeNameStory = "Story"
 
 
     //end customizing
 
     // These names should be standard in JIRA and not change from release to release
-    def myList = ["Fix Version","Sprint","assignee"]
+    def myList = ["Component","Fix Version","Sprint","assignee"]
 
     def fix_version_update
     def sprint_update
     def assignee_update
+    def component_update
 
 
     //def test = event.getChangeLog().getRelated('ChildChangeItem')
 
     for (item in myList) {
 
-        def field = event.getChangeLog().getRelated('ChildChangeItem').find{it.field == item};
+        def field = event.getChangeLog().getRelated('ChildChangeItem').find{it.field == item}
+
+
+        if (field != null && item == "Component") {
+
+            component_update = true
+
+            def newComponent = field.newstring
+
+            def issueType = issue.getIssueTypeObject().getName()
+
+            if (issueType == issueTypeNameStory) {
+
+                // get all SubTasks for the story
+                def subTasks = getIssuesOfNetwork(issue,issueTypeNameSubTasks,"1","").getIssues()
+
+                //we need the IssueManager in order to create the issue of the the result of the query
+                IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+
+                    subTasks.each {
+
+                        //we create an issue
+                        def myIssue = issueManager.getIssueObject(it.getId())
+
+
+                        //functionality to update a label of a jira field is missing yet!
+                        //open
+                        //setLabel(myIssue,newComponent,"Component")
+
+                    }
+
+
+            }
+
+
+        }//end of handling of components
 
         if (field != null && item == "Fix Version"){
             fix_version_update = true
@@ -496,7 +538,7 @@ def main(Issue issue){
 
 
 
-                if(issueType == "Unteraufgabe" && keyWord == nameOfPrefix){
+                if(issueType == issueTypeNameSubTasks && keyWord == nameOfPrefix){
 
                     def newAssignee = field.newstring
 
@@ -578,3 +620,5 @@ main(getCurrentIssue("EV"))
 //getIssuesOfNetwork(getCurrentIssue("EV"),"story","1")
 
 //setLabel(getIssueByKey("DEMO-1"),"roland",".Developer")
+
+//setLabel(getCurrentIssue("EV"),"test","Component")
