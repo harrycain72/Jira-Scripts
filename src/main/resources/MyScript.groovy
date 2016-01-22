@@ -1,3 +1,6 @@
+// R.Wangemann
+// V1.0
+// 22.01.2016
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
@@ -13,6 +16,8 @@ import com.atlassian.jira.issue.search.SearchProvider
 import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
 import com.atlassian.jira.jql.parser.JqlQueryParser
 import com.atlassian.jira.web.bean.PagerFilter
+import com.atlassian.crowd.embedded.api.User
+
 
 //method retrieves the current user
 def getCurrentUser() {
@@ -428,6 +433,21 @@ def setReleaseAndSprintNamesInBusinesRequest(Issue issue,String customFieldName)
     // end of new stuff
 }
 
+def updateComponents(Issue issue, Collection<ProjectComponent> components){
+
+    IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+    MutableIssue mutableIssue = issue
+
+    mutableIssue.setComponentObjects(components)
+
+    User user = getCurrentUser().getDirectoryUser()
+
+   issueManager.updateIssue(user,mutableIssue,com.atlassian.jira.event.type.EventDispatchOption.DO_NOT_DISPATCH,false)
+
+
+}
+
 
 
 def main(Issue issue){
@@ -466,7 +486,8 @@ def main(Issue issue){
 
             component_update = true
 
-            def newComponent = field.newstring
+
+           Collection<ProjectComponent> myComponents = issue.getComponentObjects()
 
             def issueType = issue.getIssueTypeObject().getName()
 
@@ -484,10 +505,7 @@ def main(Issue issue){
                         //we create an issue
                         def myIssue = issueManager.getIssueObject(it.getId())
 
-
-                        //functionality to update a label of a jira field is missing yet!
-                        //open
-                        //setLabel(myIssue,newComponent,"Component")
+                        updateComponents(myIssue,myComponents)
 
                     }
 
@@ -593,32 +611,3 @@ def main(Issue issue){
 main(getCurrentIssue("EV"))
 
 
-//****************
-
-//addComment(getCurrentIssue("EV"),'great comment')
-
-//addComment(getCurrentIssue("EV"),getCurrentUser().getName())
-
-//addComment(getCurrentIssue("EV"),getCustomFieldValue(getCurrentIssue("EV"),".BusinessRequestor"))
-
-//addSubTask(getCurrentIssue("WF"),'b','my b description')
-
-//addComment(getCurrentIssue("EV"),getReleaseName(getCurrentIssue("EV")))
-
-//addComment(getCurrentIssue("EV"),getSprintName(getCurrentIssue("EV")))
-
-//setCustomFieldValue(getCurrentIssue("EV"),getReleaseName(getCurrentIssue("EV")),getCustomField('.BusinessRequestor'))
-
-//addComment(getCurrentIssue("EV"),getComponentName(getCurrentIssue("EV")))
-
-//addComment(getIssueByKey("DEMO-1"),getComponentName(getCurrentIssue("EV")))
-
-//addComment(getCurrentIssue("EV"),getTodaysDate())
-
-//setCustomFieldValue(getCurrentIssue("EV"),"R16.3",getCustomField(".Release"))
-
-//getIssuesOfNetwork(getCurrentIssue("EV"),"story","1")
-
-//setLabel(getIssueByKey("DEMO-1"),"roland",".Developer")
-
-//setLabel(getCurrentIssue("EV"),"test","Component")
