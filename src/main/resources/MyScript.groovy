@@ -2,6 +2,7 @@
 // V1.0
 // 22.01.2016
 import com.atlassian.greenhopper.service.sprint.Sprint
+import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
 import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
 import com.atlassian.jira.event.issue.IssueEvent
@@ -12,6 +13,9 @@ import com.atlassian.jira.issue.MutableIssue
 import com.atlassian.jira.issue.fields.CustomField
 import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
 import com.atlassian.jira.issue.label.LabelManager
+import com.atlassian.jira.issue.link.DefaultRemoteIssueLinkManager
+import com.atlassian.jira.issue.link.RemoteIssueLink
+import com.atlassian.jira.issue.link.RemoteIssueLinkBuilder
 import com.atlassian.jira.issue.search.SearchProvider
 import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
 import com.atlassian.jira.jql.parser.JqlQueryParser
@@ -20,7 +24,7 @@ import com.atlassian.crowd.embedded.api.User
 
 
 //method retrieves the current user
-def getCurrentUser() {
+def getCurrentApplicationUser() {
     //determine current user
 
     //Security
@@ -39,8 +43,8 @@ def addComment(Issue issue, String myComment) {
 
     cmm = ComponentAccessor.getCommentManager()
 
-    //cmm.create(issue,getCurrentUser(),myComment,true)
-    cmm.create(issue,getCurrentUser(),myComment,true)
+    //cmm.create(issue,getCurrentApplicationUser(),myComment,true)
+    cmm.create(issue,getCurrentApplicationUser(),myComment,true)
 
 
 }
@@ -127,20 +131,20 @@ def addSubTask(Issue issue, String subTaskName, String subTaskDescription) {
         //Security
         //jac = ComponentAccessor.getJiraAuthenticationContext()
 
-        currentUser = getCurrentUser()
+        currentUser = getCurrentApplicationUser()
 
-        subTask = ism.createIssueObject(currentUser, issueObject)
+        subTask = ism.createIssueObject(currentApplicationUser, issueObject)
 
 
         //the created subtask is linked to the issue.This is done through the SubTaskMngr
 
         stm = ComponentAccessor.getSubTaskManager()
-        stm.createSubTaskIssueLink(issue, subTask, currentUser)
+        stm.createSubTaskIssueLink(issue, subTask, currentApplicationUser)
 
 
         // disable the watcher using the WatcherManager
         wtm = ComponentAccessor.getWatcherManager()
-        wtm.stopWatching(currentUser, subTask)
+        wtm.stopWatching(currentApplicationUser, subTask)
 
     }
 
@@ -222,7 +226,7 @@ def setLabel(Issue issue, String newValue, String fieldName){
     Set<String> set = convertToSetForLabels((String) newValue)
 
 
-    labelManager.setLabels(getCurrentUser(),issue.getId(),customField.getIdAsLong(),set,false,true)
+    labelManager.setLabels(getCurrentApplicationUser(),issue.getId(),customField.getIdAsLong(),set,false,true)
 
 }
 
@@ -235,7 +239,7 @@ def setLabels(Issue issue, Set labels, String fieldName){
     CustomField customField = customFieldManager.getCustomFieldObjectByName(fieldName)
 
 
-    labelManager.setLabels(getCurrentUser(),issue.getId(),customField.getIdAsLong(),labels,false,true)
+    labelManager.setLabels(getCurrentApplicationUser(),issue.getId(),customField.getIdAsLong(),labels,false,true)
 
 }
 
@@ -273,9 +277,9 @@ def convertToSetForLabels(String newValue){
 def getIssueByKey(String myIssueKey){
 
 
-    MutableIssue myMutableIssue = ComponentAccessor.getIssueManager().getIssueByCurrentKey(myIssueKey);
+    Issue issue = ComponentAccessor.getIssueManager().getIssueByCurrentKey(myIssueKey);
 
-    return myMutableIssue
+    return issue
 }
 
 def getComponentName(Issue myIssue){
@@ -355,7 +359,7 @@ def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,Strin
     def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
     def searchProvider = ComponentAccessor.getComponent(SearchProvider)
     def issueManager = ComponentAccessor.getIssueManager()
-    def user = getCurrentUser()
+    def user = getCurrentApplicationUser()
     def issueId = issue.getKey()
     def query
 
@@ -441,7 +445,7 @@ def updateComponents(Issue issue, Collection<ProjectComponent> components){
 
     mutableIssue.setComponentObjects(components)
 
-    User user = getCurrentUser().getDirectoryUser()
+    User user = getCurrentApplicationUser().getDirectoryUser()
 
    issueManager.updateIssue(user,mutableIssue,com.atlassian.jira.event.type.EventDispatchOption.DO_NOT_DISPATCH,false)
 
@@ -450,7 +454,7 @@ def updateComponents(Issue issue, Collection<ProjectComponent> components){
 
 
 
-def main(Issue issue){
+def handelIssueUpdateAndAssignEvents(Issue issue){
 
     //begin customizing
 
@@ -604,10 +608,77 @@ def main(Issue issue){
 }
 
 
+// feature copy link to confluence from one issue to the linked issues
+//
 
 
+def copyLinkToConfluence(Issue issue){
+
+    try {
+
+        def issueLinkManager = ComponentAccessor.getIssueLinkManager()
+
+        def remoteIssueLinkManager = ComponentAccessor.getComponentOfType(DefaultRemoteIssueLinkManager.class)
+
+
+        //get all remote links = external links for the current issue
+        List remoteLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(issue)
+
+        //define all issues, for which we want the link to be copied to
+        def newIssue = getIssueByKey("DEMO-3")
+
+        //we create an exact copy of every RemoteIssueLink
+
+        //first we need to configurate our link 1:1 to the existing one.
+        def linkBuilder = new RemoteIssueLinkBuilder()
+
+                for (RemoteIssueLink item : remoteLinks) {
+
+
+
+                    //we create an exact copy of the existing link
+
+                    //We only change the id of the issue
+                    linkBuilder.issueId(newIssue.getId())
+
+                    //we copy the rest
+                    linkBuilder.globalId(item.getGlobalId())
+                    linkBuilder.title(item.getTitle())
+                    linkBuilder.url(item.getUrl())
+                    linkBuilder.relationship(item.getRelationship())
+                    linkBuilder.applicationType(item.getApplicationType())
+                    linkBuilder.applicationName(item.getApplicationName())
+
+                    def newLink = linkBuilder.build()
+
+                    //create a new link
+                    def remoteIssueLinkService = ComponentAccessor.getComponentOfType(DefaultRemoteIssueLinkService.class)
+
+                    def createValidationResult = remoteIssueLinkService.validateCreate(getCurrentApplicationUser(),newLink)
+
+                    remoteIssueLinkService.create(getCurrentApplicationUser(),createValidationResult)
+
+                }//end for
+
+        
+
+
+       // LinkCollection  linkCollection = issueLinkManager.getLinkCollection(issue,getCurrentApplicationUser().getDirectoryUser())
+
+        println "z"
+
+    }
+
+    catch (all){
+
+    }
+
+
+}
+
+//**********************************************
 // EV = Verwendung in Listerners, WV = Verwendung in Workflows
 
-main(getCurrentIssue("EV"))
-
+//handelIssueUpdateAndAssignEvents(getCurrentIssue("EV"))
+copyLinkToConfluence(getCurrentIssue("EV"))
 
