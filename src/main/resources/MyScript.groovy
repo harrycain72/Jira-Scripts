@@ -622,17 +622,56 @@ def copyLinkToConfluence(Issue issue){
 
 
         //get all remote links = external links for the current issue
-        List remoteLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(issue)
+        List sourceLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(issue)
+
+
 
         //define all issues, for which we want the link to be copied to
         def newIssue = getIssueByKey("DEMO-3")
+
+        //get all remote links = external links for the target issue
+        List targetLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(newIssue)
+
+
+        //get for all external links of source issue the globalIDs
+        List targetURLs = []
+
+        //check if any externe links exist in target issue
+        if (targetLinks.size() != 0) {
+
+
+            for (RemoteIssueLink item : targetLinks){
+
+                def Url = item.getUrl()
+
+                targetURLs.add(Url)
+            }
+
+        }
+
+
+        //create a list for only the links that do not exist in the target issue
+        List relevantLinks = []
+
+        for (RemoteIssueLink item : sourceLinks){
+
+                def found = targetURLs.find{it == item.getUrl()}
+
+                if (found == null) {
+
+                    relevantLinks.add(item)
+                }
+
+        }
+
+
 
         //we create an exact copy of every RemoteIssueLink
 
         //first we need to configurate our link 1:1 to the existing one.
         def linkBuilder = new RemoteIssueLinkBuilder()
 
-                for (RemoteIssueLink item : remoteLinks) {
+                for (RemoteIssueLink item : relevantLinks) {
 
 
 
@@ -650,6 +689,11 @@ def copyLinkToConfluence(Issue issue){
                     linkBuilder.applicationName(item.getApplicationName())
 
                     def newLink = linkBuilder.build()
+
+
+                    //check if the issue already has got this link assigned to
+
+
 
                     //create a new link
                     def remoteIssueLinkService = ComponentAccessor.getComponentOfType(DefaultRemoteIssueLinkService.class)
