@@ -1,6 +1,6 @@
 // R.Wangemann
-// V1.0
-// 22.01.2016
+// V1.1
+// 24.01.2016
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
 import com.atlassian.jira.bc.project.component.ProjectComponent
@@ -354,7 +354,8 @@ def getSprintAndReleaseName(Issue issue){
 }
 
 
-def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,String linkType){
+
+def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
 
     def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
     def searchProvider = ComponentAccessor.getComponent(SearchProvider)
@@ -365,6 +366,38 @@ def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,Strin
 
 
 
+// query for sub tasks without linktype
+
+    if(linkType==""){
+
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ")  ORDER BY issuetype DESC")
+
+    }
+
+
+    else {
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"" + linkType + "\")  ORDER BY issuetype DESC")
+    }
+
+    def issues = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter())
+
+    return issues
+
+
+}
+
+
+
+
+
+def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,String linkType){
+
+    def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
+    def searchProvider = ComponentAccessor.getComponent(SearchProvider)
+    def issueManager = ComponentAccessor.getIssueManager()
+    def user = getCurrentApplicationUser()
+    def issueId = issue.getKey()
+    def query
 
 
 
@@ -387,6 +420,8 @@ def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,Strin
 
 
 }
+
+
 
 
 
@@ -454,6 +489,441 @@ def updateComponents(Issue issue, Collection<ProjectComponent> components){
 
 
 
+
+// feature copy link to confluence from one issue to the linked issues
+//
+
+
+def syncExternalLinks(Issue issue){
+
+    //we need the IssueManager in order to create the issue of the the result of the query
+    IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+    //we need to know what kind of issue was updated
+    // the reason is, if it was an epic, then we have to select of all stories in network
+    // only those that are linked to the epic.
+    // Only those stories with an link to the epic will get copied the links
+    //Background: we get all issues linked directly and indirectly to the current issue.
+    //If the business request should have linked stories, which are not linked to the epic,
+    //then these are also included in the query result, when the update was done for an epic
+
+    def currentIssueType = issue.getIssueTypeObject().getName()
+
+
+    //now we get all issues in the network with level 0 = current issue
+    // consider max three levels in each direction of current issue
+    // we don't limit the result based on type of relationship
+    // we consider all types of issues
+
+    def issuesInNetwork = getIssuesOfNetwork(issue,"3","").getIssues()
+
+
+
+    //
+    //sort all issues depending on their issueType
+
+    List stories = []
+    List epics = []
+    List businessRequests = []
+    List requirements = []
+    List testCases = []
+
+    List remainingIssueTypes = []
+
+
+
+
+
+    for(Issue item : issuesInNetwork){
+
+        def myIssue = issueManager.getIssueObject(item.getId())
+
+        def myIssueType = item.getIssueTypeObject().getName()
+
+        //we need the issueLinkMnager in order to be able to retriev the internal links for all stories
+        //as we only want to have those stories that have a relationship to an epic
+        def issueLinkManager = ComponentAccessor.getIssueLinkManager()
+
+
+        if (myIssue.getIssueTypeObject().getName()=="Story"){
+
+            stories.add(item)
+        }
+
+        else if (myIssue.getIssueTypeObject().getName() == "Epic"){
+            epics.add(item)
+        }
+
+        else if (myIssue.getIssueTypeObject().getName() == "Business Request"){
+            businessRequests.add(item)
+        }
+
+        else if (myIssue.getIssueTypeObject().getName() == "Requirement"){
+
+            requirements.add(item)
+        }
+
+        else if (myIssue.getIssueTypeObject().getName() == "Test Case"){
+
+            testCases.add(item)
+        }
+
+
+
+        else {
+
+                remainingIssueTypes.add(item)
+        }
+
+
+        println "z"
+
+
+
+    }
+
+
+
+    //now prepare the list of issues to which we have to sync the links depending on the issue type of the
+    // current issue.
+
+
+    def issueTypeOfCurrentIssue = issue.getIssueTypeObject().getName()
+
+    //to all issues in this list we will have to sync the external links of the current issue
+    List relevantIssuesToCopyLinksTo = []
+
+    //we need this list if the current issue is a requirement or test case
+    //in these cases we have to switch the current issue as often as we have stories, epics or business requests in the network of issues
+    //Reason: we want to make sure that all links of the above mentioned issues are copied.
+    List currentIssueStories = []
+    List currentIssueBusinessRequests = []
+    List currentIssueEpics = []
+
+
+    if (issueTypeOfCurrentIssue == "Story"){
+
+
+       for (Issue item : requirements){
+           relevantIssuesToCopyLinksTo.add(item)
+       }
+
+
+       for (Issue item : testCases){
+           relevantIssuesToCopyLinksTo.add(item)
+       }
+
+
+    }
+
+
+
+    else if (issueTypeOfCurrentIssue == "Business Request"){
+
+        relevantIssuesToCopyLinksTo = stories
+
+        for (Issue item : requirements){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+        for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+    }
+
+
+    else if (issueTypeOfCurrentIssue == "Epic") {
+
+
+        //here we have to find a way to get rid of the stories, that are not linked to the EPIC
+        relevantIssuesToCopyLinksTo = stories
+
+        for (Issue item : requirements){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+        for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+    }
+
+    else if (issueTypeOfCurrentIssue == "Requirement") {
+
+
+        //handle stories
+
+        currentIssueStories = stories
+
+        for (Issue item : requirements){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+        for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+        for(Issue item : currentIssueStories){
+
+            copyAndDeleteExternalLinks(item,relevantIssuesToCopyLinksTo)
+        }
+
+        // handle epics
+
+
+        currentIssueEpics = epics
+
+        //here we have to find a way to get rid of the stories, that are not linked to the EPIC
+
+        //reset
+        relevantIssuesToCopyLinksTo = []
+
+        relevantIssuesToCopyLinksTo = stories
+
+        for (Issue item : requirements){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+        for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+        for (Issue item : currentIssueEpics){
+            copyAndDeleteExternalLinks(item,relevantIssuesToCopyLinksTo)
+
+        }
+
+
+        //handle business requests
+
+        currentIssueBusinessRequests = businessRequests
+
+        //reset
+        relevantIssuesToCopyLinksTo = []
+
+        relevantIssuesToCopyLinksTo = stories
+
+        for (Issue item : requirements){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+        for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+        for (Issue item : currentIssueBusinessRequests){
+
+            copyAndDeleteExternalLinks(item, relevantIssuesToCopyLinksTo)
+        }
+
+    }
+
+
+    else {
+        println "z"
+    }
+
+
+
+    if (issueTypeOfCurrentIssue == "Story" || "Business Request" || "Epic"){
+
+        copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
+
+    }
+
+
+
+
+
+}
+
+
+
+def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinksTo){
+
+
+
+
+    try {
+
+        def issueLinkManager = ComponentAccessor.getIssueLinkManager()
+
+        def remoteIssueLinkManager = ComponentAccessor.getComponentOfType(DefaultRemoteIssueLinkManager.class)
+
+
+        //get all remote links = external links for the current issue
+        List sourceLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(currentIssue)
+
+
+
+        List sourceURLs =[]
+
+        //create a list of all available sourceURLS
+        if (sourceLinks.size() != 0) {
+
+
+            for (RemoteIssueLink item : sourceLinks){
+
+                def Url = item.getUrl()
+
+                sourceURLs.add(Url)
+            }
+
+        }
+
+
+
+        for (Issue itemInList : issuesToCopyLinksTo){
+
+
+                //define all issues, for which we want the link to be copied to
+                def newIssue = getIssueByKey(itemInList.getKey())
+
+
+
+                //get all remote links = external links for each target issue
+                List targetLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(newIssue)
+
+
+                //get for all external links of source issue the globalIDs
+                List targetURLs = []
+
+                //create a list of all available targetURLS
+                if (targetLinks.size() != 0) {
+
+
+                    for (RemoteIssueLink item : targetLinks){
+
+                        def Url = item.getUrl()
+
+                        targetURLs.add(Url)
+                    }
+
+                }
+
+
+                //create a list for only the links that do not exist in the target issue
+                //For this we check if in the list of all URLs existing in the target issue,
+                //the URLs of all available links in the source issue exist.
+                List relevantLinks = []
+
+                for (RemoteIssueLink item : sourceLinks){
+
+                        def found = targetURLs.find{it == item.getUrl()}
+
+                        if (found == null) {
+
+                            relevantLinks.add(item)
+                        }
+
+                }
+
+
+
+                //create a list for those links, that have been deleted in the original issue (type story) and still exist
+                //in the target issues. Remember, we want to have the links synchronized.
+
+
+                List linksToBeDeletedInTargetIssue = []
+
+                for (RemoteIssueLink item : targetLinks){
+
+                    if (item.getSummary()==newIssue.getKey()){
+
+                        def found = sourceURLs.find{it == item.getUrl()}
+
+                        if(found == null){
+
+                            linksToBeDeletedInTargetIssue.add(item)
+                        }
+
+
+                    }
+
+                }
+
+
+                //In order to create, delete or update a link we need the a remoteIssueLinkService
+                def remoteIssueLinkService = ComponentAccessor.getComponentOfType(DefaultRemoteIssueLinkService.class)
+
+
+                //first we have to delete the links in the target issue with origin source issue, but don't exist there anymore.
+
+                for (RemoteIssueLink item : linksToBeDeletedInTargetIssue) {
+
+                    def deleteValidationResult = remoteIssueLinkService.validateDelete(getCurrentApplicationUser(),item.getId())
+
+                    remoteIssueLinkService.delete(getCurrentApplicationUser(),deleteValidationResult)
+
+                }
+
+
+
+
+                //second, we want to create the missing links
+                //For all relevant links we create an exact copy of every RemoteIssueLink
+                //first we need to configure our link 1:1 to the existing ones.
+
+                def linkBuilder = new RemoteIssueLinkBuilder()
+
+                        for (RemoteIssueLink item : relevantLinks) {
+
+
+
+                            //we create an exact copy of the existing link
+
+                            //We only change the id of the issue
+                            linkBuilder.issueId(newIssue.getId())
+                            //We need the id of the source issue, just to be able to synchronize the links
+                            //When a link is deleted in the source issue, the same link should be deleted in the target issue(s)
+                            linkBuilder.summary(newIssue.getKey())
+
+                            //we copy the rest
+                            linkBuilder.globalId(item.getGlobalId())
+                            linkBuilder.title(item.getTitle())
+                            linkBuilder.url(item.getUrl())
+                            linkBuilder.iconUrl(item.getIconUrl())
+                            linkBuilder.iconTitle(item.getIconTitle())
+                            linkBuilder.relationship(item.getRelationship())
+                            linkBuilder.applicationType(item.getApplicationType())
+                            linkBuilder.applicationName(item.getApplicationName())
+
+                            def newLink = linkBuilder.build()
+
+
+                            //check if the issue already has got this link assigned to
+
+
+
+
+
+                            def createValidationResult = remoteIssueLinkService.validateCreate(getCurrentApplicationUser(),newLink)
+
+                            remoteIssueLinkService.create(getCurrentApplicationUser(),createValidationResult)
+
+                        }//end for
+
+        println "z"
+
+        }
+    }
+
+    catch (all){
+
+    }
+
+
+}
+
+
 def handelIssueUpdateAndAssignEvents(Issue issue){
 
     //begin customizing
@@ -491,7 +961,7 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
             component_update = true
 
 
-           Collection<ProjectComponent> myComponents = issue.getComponentObjects()
+            Collection<ProjectComponent> myComponents = issue.getComponentObjects()
 
             def issueType = issue.getIssueTypeObject().getName()
 
@@ -504,14 +974,14 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
                 IssueManager issueManager = ComponentAccessor.getIssueManager()
 
 
-                    subTasks.each {
+                subTasks.each {
 
-                        //we create an issue
-                        def myIssue = issueManager.getIssueObject(it.getId())
+                    //we create an issue
+                    def myIssue = issueManager.getIssueObject(it.getId())
 
-                        updateComponents(myIssue,myComponents)
+                    updateComponents(myIssue,myComponents)
 
-                    }
+                }
 
 
             }
@@ -538,13 +1008,13 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
             // set the name of the sprint name.
 
 
-                setLabel(issue,getSprintAndReleaseName(issue),customFieldNameSprint)
+            setLabel(issue,getSprintAndReleaseName(issue),customFieldNameSprint)
 
             // every time a sprint is added or changed, we have to update the issue business request
             // with all sprint names of all stories as labels
 
 
-                setReleaseAndSprintNamesInBusinesRequest(issue,customFieldNameSprintAndReleaseNames)
+            setReleaseAndSprintNamesInBusinesRequest(issue,customFieldNameSprintAndReleaseNames)
 
         }
 
@@ -560,169 +1030,60 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
 
 
 
-                if(issueType == issueTypeNameSubTasks && keyWord == nameOfPrefix){
+            if(issueType == issueTypeNameSubTasks && keyWord == nameOfPrefix){
 
-                    def newAssignee = field.newstring
-
-
-                    // set for this issue of type sub task the customfield .Developer t
-                    if (newAssignee == null) {newAssignee = ""}
-
-                    setLabel(issue,newAssignee,customFieldNameDeveloper)
+                def newAssignee = field.newstring
 
 
+                // set for this issue of type sub task the customfield .Developer t
+                if (newAssignee == null) {newAssignee = ""}
 
-
-                            //set for the parent issue of type story the customfield .Developer
-
-                            // get my parent. For this look in the network of linked issues, from my point of view 1 level deep
-                            // for a sub task the link type to its parent should be left blank
-                            def queryResult = getIssuesOfNetwork(issue,"story","1","").getIssues()
-
-                            //we need the IssueManager in order to create the issue of the the result of the query
-                            IssueManager issueManager = ComponentAccessor.getIssueManager()
-
-                        //every sub task should have only one parent
-                        if (queryResult.size()== 1){
-
-
-                            //we create an issue
-                            def myIssue = issueManager.getIssueObject(queryResult.get(0).getId())
-
-                            def issueKey = myIssue.getKey()
-
-                            setLabel(myIssue,newAssignee,customFieldNameDeveloper)
-                        }
+                setLabel(issue,newAssignee,customFieldNameDeveloper)
 
 
 
+
+                //set for the parent issue of type story the customfield .Developer
+
+                // get my parent. For this look in the network of linked issues, from my point of view 1 level deep
+                // for a sub task the link type to its parent should be left blank
+                def queryResult = getIssuesOfNetwork(issue,"story","1","").getIssues()
+
+                //we need the IssueManager in order to create the issue of the the result of the query
+                IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+                //every sub task should have only one parent
+                if (queryResult.size()== 1){
+
+
+                    //we create an issue
+                    def myIssue = issueManager.getIssueObject(queryResult.get(0).getId())
+
+                    def issueKey = myIssue.getKey()
+
+                    setLabel(myIssue,newAssignee,customFieldNameDeveloper)
                 }
 
-                println ""
-        }
-
-       else println ""
-    }
 
 
-}
-
-
-// feature copy link to confluence from one issue to the linked issues
-//
-
-
-def copyLinkToConfluence(Issue issue){
-
-    try {
-
-        def issueLinkManager = ComponentAccessor.getIssueLinkManager()
-
-        def remoteIssueLinkManager = ComponentAccessor.getComponentOfType(DefaultRemoteIssueLinkManager.class)
-
-
-        //get all remote links = external links for the current issue
-        List sourceLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(issue)
-
-
-
-        //define all issues, for which we want the link to be copied to
-        def newIssue = getIssueByKey("DEMO-3")
-
-        //get all remote links = external links for the target issue
-        List targetLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(newIssue)
-
-
-        //get for all external links of source issue the globalIDs
-        List targetURLs = []
-
-        //check if any externe links exist in target issue
-        if (targetLinks.size() != 0) {
-
-
-            for (RemoteIssueLink item : targetLinks){
-
-                def Url = item.getUrl()
-
-                targetURLs.add(Url)
             }
 
+            println ""
         }
 
-
-        //create a list for only the links that do not exist in the target issue
-        List relevantLinks = []
-
-        for (RemoteIssueLink item : sourceLinks){
-
-                def found = targetURLs.find{it == item.getUrl()}
-
-                if (found == null) {
-
-                    relevantLinks.add(item)
-                }
-
+        else {
+            syncExternalLinks(issue)
         }
-
-
-
-        //we create an exact copy of every RemoteIssueLink
-
-        //first we need to configurate our link 1:1 to the existing one.
-        def linkBuilder = new RemoteIssueLinkBuilder()
-
-                for (RemoteIssueLink item : relevantLinks) {
-
-
-
-                    //we create an exact copy of the existing link
-
-                    //We only change the id of the issue
-                    linkBuilder.issueId(newIssue.getId())
-
-                    //we copy the rest
-                    linkBuilder.globalId(item.getGlobalId())
-                    linkBuilder.title(item.getTitle())
-                    linkBuilder.url(item.getUrl())
-                    linkBuilder.relationship(item.getRelationship())
-                    linkBuilder.applicationType(item.getApplicationType())
-                    linkBuilder.applicationName(item.getApplicationName())
-
-                    def newLink = linkBuilder.build()
-
-
-                    //check if the issue already has got this link assigned to
-
-
-
-                    //create a new link
-                    def remoteIssueLinkService = ComponentAccessor.getComponentOfType(DefaultRemoteIssueLinkService.class)
-
-                    def createValidationResult = remoteIssueLinkService.validateCreate(getCurrentApplicationUser(),newLink)
-
-                    remoteIssueLinkService.create(getCurrentApplicationUser(),createValidationResult)
-
-                }//end for
-
-        
-
-
-       // LinkCollection  linkCollection = issueLinkManager.getLinkCollection(issue,getCurrentApplicationUser().getDirectoryUser())
-
-        println "z"
-
-    }
-
-    catch (all){
-
     }
 
 
 }
+
 
 //**********************************************
 // EV = Verwendung in Listerners, WV = Verwendung in Workflows
 
-//handelIssueUpdateAndAssignEvents(getCurrentIssue("EV"))
-copyLinkToConfluence(getCurrentIssue("EV"))
+handelIssueUpdateAndAssignEvents(getCurrentIssue("EV"))
+
+
 
