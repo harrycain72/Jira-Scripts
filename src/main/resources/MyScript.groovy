@@ -96,6 +96,19 @@ def checkIfSubTaskSummaryExists(Issue issue, String mySummaryToBeChecked) {
 //this method is responsible for the creation of subTask
 def addSubTask(Issue issue, String subTaskName, String subTaskDescription) {
 
+
+    //start customizing
+
+    def issueTypeIdForStory = "10001"
+    def issueTypeIdForSubTask = "10101"
+
+    //end customizing
+
+
+
+
+
+
     //Instanzierung der factories
     isf = ComponentAccessor.getIssueFactory()
 
@@ -106,7 +119,7 @@ def addSubTask(Issue issue, String subTaskName, String subTaskDescription) {
 
     //Possible IssueTypeValues are 10001 story, 10101 subtask, 10102 bug, 10000 epic
     // old value 5 ?
-    issueObject.setIssueTypeId('10101')
+    issueObject.setIssueTypeId(issueTypeIdForSubTask)
 
     //getValues of current issue = parent
     issueObject.setParentId(issue.getId())
@@ -226,7 +239,9 @@ def setLabel(Issue issue, String newValue, String fieldName){
     Set<String> set = convertToSetForLabels((String) newValue)
 
 
-    labelManager.setLabels(getCurrentApplicationUser(),issue.getId(),customField.getIdAsLong(),set,false,true)
+    labelManager.setLabels(getCurrentApplicationUser().getDirectoryUser(),issue.getId(),customField.getIdAsLong(),set,false,true)
+
+
 
 }
 
@@ -239,7 +254,7 @@ def setLabels(Issue issue, Set labels, String fieldName){
     CustomField customField = customFieldManager.getCustomFieldObjectByName(fieldName)
 
 
-    labelManager.setLabels(getCurrentApplicationUser(),issue.getId(),customField.getIdAsLong(),labels,false,true)
+    labelManager.setLabels(getCurrentApplicationUser().getDirectoryUser(),issue.getId(),customField.getIdAsLong(),labels,false,true)
 
 }
 
@@ -350,6 +365,28 @@ def getSprintAndReleaseName(Issue issue){
         sprintName = "-"
     }
 
+    // get rid of the blanks
+
+    StringTokenizer st = new StringTokenizer(sprintName," ")
+
+    String myValue = ""
+
+
+    while(st.hasMoreTokens()) {
+        if(myValue == ""){
+
+            myValue=myValue+st.nextToken()
+        }
+
+        else {
+            myValue=myValue + "_" + st.nextToken()
+        }
+
+
+    }
+
+    sprintName = myValue
+
     return sprintName
 }
 
@@ -371,6 +408,24 @@ def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
     if(linkType==""){
 
         query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ")  ORDER BY issuetype DESC")
+
+    }
+
+     else if(linkType=="relates_to"){
+
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"relates to\")  ORDER BY issuetype DESC")
+
+    }
+
+    else if(linkType=="has_Epic"){
+
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"has Epic\")  ORDER BY issuetype DESC")
+
+    }
+
+    else if(linkType=="is_Epic_of"){
+
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"is Epic of\")  ORDER BY issuetype DESC")
 
     }
 
@@ -427,15 +482,22 @@ def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,Strin
 
 def setReleaseAndSprintNamesInBusinesRequest(Issue issue,String customFieldName){
 
+    //start customizing
+
+    def issueTypeStory = "Story"
+    def issueTypeBusinessRequest = "\"Business Request\""
+    def linkTypeRelatesTo = "relates to"
+
+    //end customizing
 
     //we need the IssueManager in order to create the issue of the the result of the query
     IssueManager issueManager = ComponentAccessor.getIssueManager()
 
     //get all stories linked by relates to
-    def stories = getIssuesOfNetwork(issue,"Story","3","relates to").getIssues()
+    def stories = getIssuesOfNetwork(issue,issueTypeStory,"3",linkTypeRelatesTo).getIssues()
 
     //get the business request. We should only have one business request linked to the stories
-    def businessRequests= getIssuesOfNetwork(issue,"Request","3","relates to").getIssues()
+    def businessRequests= getIssuesOfNetwork(issue,issueTypeBusinessRequest,"3",linkTypeRelatesTo).getIssues()
 
     //get the sprint name for each story. The names must be updated as labels in the business request
 
@@ -496,6 +558,20 @@ def updateComponents(Issue issue, Collection<ProjectComponent> components){
 
 def syncExternalLinks(Issue issue){
 
+
+
+    //start customizing
+
+    def issueTypeStory = "Story"
+    def issueTypeEpic = "Epic"
+    def issueTypeBusinessRequest = "Business Request"
+    def issueTypeRequirement = "Requirement"
+    def issueTypeTestCase = "Test Case"
+
+    //end customizig
+
+
+
     //we need the IssueManager in order to create the issue of the the result of the query
     IssueManager issueManager = ComponentAccessor.getIssueManager()
 
@@ -515,10 +591,33 @@ def syncExternalLinks(Issue issue){
     // we don't limit the result based on type of relationship
     // we consider all types of issues
 
-    def issuesInNetwork = getIssuesOfNetwork(issue,"3","").getIssues()
+    def issuesInNetwork
+
+    if(issue.getIssueTypeObject().getName()== issueTypeBusinessRequest){
+
+        issuesInNetwork = getIssuesOfNetwork(issue,"3","").getIssues()
+    }
+
+    if(issue.getIssueTypeObject().getName()== issueTypeStory){
+
+        issuesInNetwork = getIssuesOfNetwork(issue,"2","relates_to").getIssues()
+    }
 
 
+    if(issue.getIssueTypeObject().getName()== issueTypeRequirement){
 
+        issuesInNetwork = getIssuesOfNetwork(issue,"2","relates_to").getIssues()
+    }
+
+    if(issue.getIssueTypeObject().getName()== issueTypeTestCase){
+
+        issuesInNetwork = getIssuesOfNetwork(issue,"3","relates_to").getIssues()
+    }
+
+    if(issue.getIssueTypeObject().getName()== issueTypeEpic){
+
+        issuesInNetwork = getIssuesOfNetwork(issue,"2","is_Epic_of").getIssues()
+    }
     //
     //sort all issues depending on their issueType
 
@@ -545,25 +644,25 @@ def syncExternalLinks(Issue issue){
         def issueLinkManager = ComponentAccessor.getIssueLinkManager()
 
 
-        if (myIssue.getIssueTypeObject().getName()=="Story"){
+        if (myIssue.getIssueTypeObject().getName()==issueTypeStory){
 
             stories.add(item)
         }
 
-        else if (myIssue.getIssueTypeObject().getName() == "Epic"){
+        else if (myIssue.getIssueTypeObject().getName() == issueTypeEpic){
             epics.add(item)
         }
 
-        else if (myIssue.getIssueTypeObject().getName() == "Business Request"){
+        else if (myIssue.getIssueTypeObject().getName() == issueTypeBusinessRequest){
             businessRequests.add(item)
         }
 
-        else if (myIssue.getIssueTypeObject().getName() == "Requirement"){
+        else if (myIssue.getIssueTypeObject().getName() == issueTypeRequirement){
 
             requirements.add(item)
         }
 
-        else if (myIssue.getIssueTypeObject().getName() == "Test Case"){
+        else if (myIssue.getIssueTypeObject().getName() == issueTypeTestCase){
 
             testCases.add(item)
         }
@@ -582,6 +681,24 @@ def syncExternalLinks(Issue issue){
 
     }
 
+    configureSync(issue,businessRequests,epics,stories,requirements,testCases)
+
+}
+
+
+
+def configureSync(Issue issue,List businessRequests, List Epics, List stories, List requirements, List testCases){
+
+
+    //start customizing
+
+    def issueTypeStory = "Story"
+    def issueTypeEpic = "Epic"
+    def issueTypeBusinessRequest = "Business Request"
+    def issueTypeRequirement = "Requirement"
+    def issueTypeTestCase = "Test Case"
+
+    //end customizig
 
 
     //now prepare the list of issues to which we have to sync the links depending on the issue type of the
@@ -593,18 +710,19 @@ def syncExternalLinks(Issue issue){
     //to all issues in this list we will have to sync the external links of the current issue
     List relevantIssuesToCopyLinksTo = []
 
-    //we need this list if the current issue is a requirement or test case
-    //in these cases we have to switch the current issue as often as we have stories, epics or business requests in the network of issues
-    //Reason: we want to make sure that all links of the above mentioned issues are copied.
-    List currentIssueStories = []
-    List currentIssueBusinessRequests = []
-    List currentIssueEpics = []
 
 
-    if (issueTypeOfCurrentIssue == "Story"){
+    //If the current issue is of type business request, then we have to copy or delete the external links, which belong
+    // to the business request to all linked stories, requirements and test cases.
+
+    if (issueTypeOfCurrentIssue == issueTypeBusinessRequest){
 
 
-       for (Issue item : requirements){
+       for (Issue item : stories){
+           relevantIssuesToCopyLinksTo.add(item)
+       }
+
+        for (Issue item : requirements){
            relevantIssuesToCopyLinksTo.add(item)
        }
 
@@ -613,33 +731,20 @@ def syncExternalLinks(Issue issue){
            relevantIssuesToCopyLinksTo.add(item)
        }
 
-
-    }
-
+        // we trigger here that all external links are copied or deleted
 
 
-    else if (issueTypeOfCurrentIssue == "Business Request"){
 
-        relevantIssuesToCopyLinksTo = stories
-
-        for (Issue item : requirements){
-            relevantIssuesToCopyLinksTo.add(item)
-        }
-
-
-        for (Issue item : testCases){
-            relevantIssuesToCopyLinksTo.add(item)
-        }
+            copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
 
 
     }
 
 
-    else if (issueTypeOfCurrentIssue == "Epic") {
+
+    else if (issueTypeOfCurrentIssue == issueTypeStory){
 
 
-        //here we have to find a way to get rid of the stories, that are not linked to the EPIC
-        relevantIssuesToCopyLinksTo = stories
 
         for (Issue item : requirements){
             relevantIssuesToCopyLinksTo.add(item)
@@ -648,102 +753,87 @@ def syncExternalLinks(Issue issue){
 
         for (Issue item : testCases){
             relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+            copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
+
+
+        //and now we trigger to copy the process for the related higher level issues
+
+
+        for(Issue item: businessRequests){
+            syncExternalLinks(item)
+        }
+
+    }
+
+    else if (issueTypeOfCurrentIssue == issueTypeRequirement){
+
+
+        for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+        copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
+
+
+        //and now we trigger to copy the process for the related higher level issues
+
+
+        for(Issue item: stories){
+            syncExternalLinks(item)
         }
 
 
     }
 
-    else if (issueTypeOfCurrentIssue == "Requirement") {
+    else if (issueTypeOfCurrentIssue == issueTypeTestCase){
 
 
-        //handle stories
 
-        currentIssueStories = stories
 
-        for (Issue item : requirements){
-            relevantIssuesToCopyLinksTo.add(item)
+        //and now we trigger to copy the process for the related higher level issues
+
+
+
+        for(Issue item: requirements){
+            syncExternalLinks(item)
         }
 
-
-        for (Issue item : testCases){
-            relevantIssuesToCopyLinksTo.add(item)
-        }
-
-        for(Issue item : currentIssueStories){
-
-            copyAndDeleteExternalLinks(item,relevantIssuesToCopyLinksTo)
-        }
-
-        // handle epics
-
-
-        currentIssueEpics = epics
-
-        //here we have to find a way to get rid of the stories, that are not linked to the EPIC
-
-        //reset
-        relevantIssuesToCopyLinksTo = []
-
-        relevantIssuesToCopyLinksTo = stories
-
-        for (Issue item : requirements){
-            relevantIssuesToCopyLinksTo.add(item)
-        }
-
-
-        for (Issue item : testCases){
-            relevantIssuesToCopyLinksTo.add(item)
-        }
-
-        for (Issue item : currentIssueEpics){
-            copyAndDeleteExternalLinks(item,relevantIssuesToCopyLinksTo)
-
-        }
-
-
-        //handle business requests
-
-        currentIssueBusinessRequests = businessRequests
-
-        //reset
-        relevantIssuesToCopyLinksTo = []
-
-        relevantIssuesToCopyLinksTo = stories
-
-        for (Issue item : requirements){
-            relevantIssuesToCopyLinksTo.add(item)
-        }
-
-
-        for (Issue item : testCases){
-            relevantIssuesToCopyLinksTo.add(item)
-        }
-
-        for (Issue item : currentIssueBusinessRequests){
-
-            copyAndDeleteExternalLinks(item, relevantIssuesToCopyLinksTo)
-        }
 
     }
 
+    if (issueTypeOfCurrentIssue == issueTypeEpic){
+
+
+        for (Issue item : stories){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+        // we trigger here that all external links are copied or deleted
+
+        copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
+
+
+        //and now we trigger to copy the process for the related higher level issues
+
+        for(Issue item: stories){
+            syncExternalLinks(item)
+        }
+
+    }
 
     else {
         println "z"
     }
 
 
-
-    if (issueTypeOfCurrentIssue == "Story" || "Business Request" || "Epic"){
-
-        copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
-
-    }
-
-
-
-
-
 }
+
+
 
 
 
@@ -767,6 +857,8 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
         List sourceURLs =[]
 
         //create a list of all available sourceURLS
+        //we need this list later in order to determine if we have to trigger a deletion
+
         if (sourceLinks.size() != 0) {
 
 
@@ -784,27 +876,41 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
         for (Issue itemInList : issuesToCopyLinksTo){
 
 
-                //define all issues, for which we want the link to be copied to
+                //get the first issue for which we want the link to be copied to
                 def newIssue = getIssueByKey(itemInList.getKey())
 
 
 
-                //get all remote links = external links for each target issue
+                //get all remote links = external links for the target issue
                 List targetLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(newIssue)
 
 
-                //get for all external links of source issue the globalIDs
-                List targetURLs = []
+                //get for the target issue all existing URLS of the existing external links
+                List targetURLsWithOrigineCurrentIssue = []
 
-                //create a list of all available targetURLS
+                List allTargetURLs = []
+
+                //create a list of all available targetURLS with origin current issue.
+                // all other external links we do not touch
+
                 if (targetLinks.size() != 0) {
 
 
                     for (RemoteIssueLink item : targetLinks){
 
                         def Url = item.getUrl()
+                        def sourceID = item.getSummary()
 
-                        targetURLs.add(Url)
+
+                        //We  onl want to check links, which were created by this current issue
+                        if(sourceID == currentIssue.getKey()){
+
+                            targetURLsWithOrigineCurrentIssue.add(Url)
+
+                        }
+
+                        allTargetURLs.add(Url)
+
                     }
 
                 }
@@ -817,7 +923,7 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
 
                 for (RemoteIssueLink item : sourceLinks){
 
-                        def found = targetURLs.find{it == item.getUrl()}
+                        def found = allTargetURLs.find{it == item.getUrl()}
 
                         if (found == null) {
 
@@ -836,7 +942,8 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
 
                 for (RemoteIssueLink item : targetLinks){
 
-                    if (item.getSummary()==newIssue.getKey()){
+                    //here we check if current issue was origin for the external link in target issue
+                    if (item.getSummary()==currentIssue.getKey()){
 
                         def found = sourceURLs.find{it == item.getUrl()}
 
@@ -884,7 +991,7 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
                             linkBuilder.issueId(newIssue.getId())
                             //We need the id of the source issue, just to be able to synchronize the links
                             //When a link is deleted in the source issue, the same link should be deleted in the target issue(s)
-                            linkBuilder.summary(newIssue.getKey())
+                            linkBuilder.summary(currentIssue.getKey())
 
                             //we copy the rest
                             linkBuilder.globalId(item.getGlobalId())
@@ -934,7 +1041,7 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
     def customFieldNameDeveloper = ".Developer"
     //def FieldNameComponent =
     def nameOfPrefix = "DEV"
-    def issueTypeNameSubTasks = "Unteraufgabe"
+    def issueTypeNameSubTasks = "Sub-task"
     def issueTypeNameStory = "Story"
 
 
@@ -1009,6 +1116,7 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
 
 
             setLabel(issue,getSprintAndReleaseName(issue),customFieldNameSprint)
+            setLabel(issue,getReleaseName(issue),customFieldNameRelease)
 
             // every time a sprint is added or changed, we have to update the issue business request
             // with all sprint names of all stories as labels
@@ -1047,7 +1155,7 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
 
                 // get my parent. For this look in the network of linked issues, from my point of view 1 level deep
                 // for a sub task the link type to its parent should be left blank
-                def queryResult = getIssuesOfNetwork(issue,"story","1","").getIssues()
+                def queryResult = getIssuesOfNetwork(issue,issueTypeNameStory,"1","").getIssues()
 
                 //we need the IssueManager in order to create the issue of the the result of the query
                 IssueManager issueManager = ComponentAccessor.getIssueManager()
@@ -1080,8 +1188,36 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
 }
 
 
-//**********************************************
-// EV = Verwendung in Listerners, WV = Verwendung in Workflows
+
+// READ ME:
+
+//The development is based on JIRA 6.4.8.
+//In case of an upgrade the script must also be upgraded. It is expected, that the code must be changed, as some methods do not exist anymore.
+
+
+//The following methods MUST be customized according to the customizing of JIRA. The correct IssueTypeNames as defined in JIRA must be set
+//-------------------------------------------
+//addSubTask()
+//setReleaseAndSprintNamesInBusinesRequest()
+//syncExternalLinks()
+//handelIssueUpdateAndAssignEvents()
+//configureSync
+//-------------------------------------------
+
+
+//The following customfields must be set in order to enable the script to work properly
+//  .Developer   .Sprint    .Release     .Sprints
+
+
+//In order to retrieve the developer name of a sub-task the prefix of this sub-task must be set to "DEV"
+//The prefix must be customized accoringly.
+
+//The script can be triggered by an event or by a workflow.
+//If the trigger should be an event, then the flag in the method getCurrentIssue() must be set to "EV"
+//If the trigger is a worfklow, then the flag in teh method getCurrentIssue() must be set to "WV"
+
+
+//This is the method, that will be executed
 
 handelIssueUpdateAndAssignEvents(getCurrentIssue("EV"))
 
