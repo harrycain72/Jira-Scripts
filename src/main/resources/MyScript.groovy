@@ -1,6 +1,6 @@
 // R.Wangemann
-// V1.1
-// 24.01.2016
+// V1.2
+// 26.01.2016
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
 import com.atlassian.jira.bc.project.component.ProjectComponent
@@ -718,6 +718,7 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
     if (issueTypeOfCurrentIssue == issueTypeBusinessRequest){
 
 
+
        for (Issue item : stories){
            relevantIssuesToCopyLinksTo.add(item)
        }
@@ -745,6 +746,16 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
     else if (issueTypeOfCurrentIssue == issueTypeStory){
 
 
+        //first we trigger to copy the process for the related higher level issues
+        //be aware not to change the order. It is necessary to trigger the methods in this sorting order
+
+
+        for(Issue item: businessRequests){
+            syncExternalLinks(item)
+        }
+
+
+
 
         for (Issue item : requirements){
             relevantIssuesToCopyLinksTo.add(item)
@@ -759,16 +770,24 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
             copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
 
 
-        //and now we trigger to copy the process for the related higher level issues
 
-
-        for(Issue item: businessRequests){
-            syncExternalLinks(item)
-        }
 
     }
 
     else if (issueTypeOfCurrentIssue == issueTypeRequirement){
+
+
+        //and now we trigger to copy the process for the related higher level issues
+
+
+        for(Issue item: stories){
+            syncExternalLinks(item)
+        }
+
+
+
+
+
 
 
         for (Issue item : testCases){
@@ -779,12 +798,7 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
         copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
 
 
-        //and now we trigger to copy the process for the related higher level issues
 
-
-        for(Issue item: stories){
-            syncExternalLinks(item)
-        }
 
 
     }
@@ -805,26 +819,7 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
 
     }
 
-    if (issueTypeOfCurrentIssue == issueTypeEpic){
 
-
-        for (Issue item : stories){
-            relevantIssuesToCopyLinksTo.add(item)
-        }
-
-
-        // we trigger here that all external links are copied or deleted
-
-        copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
-
-
-        //and now we trigger to copy the process for the related higher level issues
-
-        for(Issue item: stories){
-            syncExternalLinks(item)
-        }
-
-    }
 
     else {
         println "z"
@@ -992,6 +987,8 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
                             //We need the id of the source issue, just to be able to synchronize the links
                             //When a link is deleted in the source issue, the same link should be deleted in the target issue(s)
                             linkBuilder.summary(currentIssue.getKey())
+
+
 
                             //we copy the rest
                             linkBuilder.globalId(item.getGlobalId())
