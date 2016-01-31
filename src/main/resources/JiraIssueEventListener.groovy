@@ -1028,7 +1028,7 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
 }
 
 
-def handelIssueUpdateAndAssignEvents(Issue issue){
+def handleIssueUpdateAndAssignEvents(Issue issue){
 
     //begin customizing
 
@@ -1197,7 +1197,7 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
 //addSubTask()
 //setReleaseAndSprintNamesInBusinesRequest()
 //syncExternalLinks()
-//handelIssueUpdateAndAssignEvents()
+//handleIssueUpdateAndAssignEvents()
 //configureSync
 //-------------------------------------------
 
@@ -1216,7 +1216,7 @@ def handelIssueUpdateAndAssignEvents(Issue issue){
 
 //This is the method, that will be executed
 
-handelIssueUpdateAndAssignEvents(getCurrentIssue("EV"))
+handleIssueUpdateAndAssignEvents(getCurrentIssue("EV"))
 
 
 
