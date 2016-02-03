@@ -477,7 +477,59 @@ def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,Strin
 }
 
 
+def setReleaseAndSprintNamesInPKE(Issue issue,String customFieldName){
 
+    //start customizing
+
+    def issueTypeStory = "Story"
+    def issueTypePKE = "PKE"
+    def linkTypeRelatesTo = "relates to"
+
+    //end customizing
+
+    //we need the IssueManager in order to create the issue of the the result of the query
+    IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+    //get all stories linked by relates to
+    def stories = getIssuesOfNetwork(issue,issueTypeStory,"3",linkTypeRelatesTo).getIssues()
+
+    //get the pke. We should only have one PKE linked to the stories
+    def pkes = getIssuesOfNetwork(issue,issueTypePKE,"3",linkTypeRelatesTo).getIssues()
+
+    //get the sprint name for each story. The names must be updated as labels in the pke
+
+    Set<String> sprintNamesSet = new HashSet<String>()
+
+
+    stories.each {
+
+        //we create an issue
+        def myIssue = issueManager.getIssueObject(it.getId())
+
+        def mySprintAndReleaseName = getSprintAndReleaseName(myIssue)
+
+        sprintNamesSet.add(mySprintAndReleaseName)
+
+    }
+
+
+
+    //we should have only one common business request for all found stories
+    if (pkes.size()== 1){
+
+
+        //we create an issue
+        def myPKE = issueManager.getIssueObject(pkes.get(0).getId())
+
+        setLabels(myPKE,sprintNamesSet,customFieldName)
+    }
+
+
+    // not nice
+    println ""
+
+    // end of new stuff
+}
 
 
 def setReleaseAndSprintNamesInBusinesRequest(Issue issue,String customFieldName){
@@ -790,7 +842,7 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
             syncExternalLinks(item)
         }
 
-        
+
         for(Issue item: pkes){
             syncExternalLinks(item)
         }
@@ -1162,6 +1214,7 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
 
 
             setReleaseAndSprintNamesInBusinesRequest(issue,customFieldNameSprintAndReleaseNames)
+            setReleaseAndSprintNamesInPKE(issue,customFieldNameSprintAndReleaseNames)
 
         }
 
