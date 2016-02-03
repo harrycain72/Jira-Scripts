@@ -1,5 +1,5 @@
 // R.Wangemann
-// V1.0
+// V1.0.2
 
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
@@ -9,7 +9,7 @@ import com.atlassian.jira.event.issue.IssueEvent
 import com.atlassian.jira.issue.Issue
 import com.atlassian.jira.issue.IssueManager
 import com.atlassian.jira.issue.ModifiedValue
-import com.atlassian.jira.issue.MutableIssue
+import com.atlassian.jira.issue.MutableIssu
 import com.atlassian.jira.issue.fields.CustomField
 import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
 import com.atlassian.jira.issue.label.LabelManager
