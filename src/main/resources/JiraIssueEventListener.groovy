@@ -1,6 +1,6 @@
 // R.Wangemann
-// V1.2
-// 26.01.2016
+// V1.0
+
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
 import com.atlassian.jira.bc.project.component.ProjectComponent
@@ -1293,6 +1293,7 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
 //-------------------------------------------
 //addSubTask()
 //setReleaseAndSprintNamesInBusinesRequest()
+//setReleaseAndSprintNamesInPKE()
 //syncExternalLinks()
 //handleIssueUpdateAndAssignEvents()
 //configureSync
