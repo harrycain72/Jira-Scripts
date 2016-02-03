@@ -1,6 +1,6 @@
 // R.Wangemann
-// V1.2
-// 26.01.2016
+// V1.0
+
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
 import com.atlassian.jira.bc.project.component.ProjectComponent
@@ -477,7 +477,59 @@ def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,Strin
 }
 
 
+def setReleaseAndSprintNamesInPKE(Issue issue,String customFieldName){
 
+    //start customizing
+
+    def issueTypeStory = "Story"
+    def issueTypePKE = "PKE"
+    def linkTypeRelatesTo = "relates to"
+
+    //end customizing
+
+    //we need the IssueManager in order to create the issue of the the result of the query
+    IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+    //get all stories linked by relates to
+    def stories = getIssuesOfNetwork(issue,issueTypeStory,"3",linkTypeRelatesTo).getIssues()
+
+    //get the pke. We should only have one PKE linked to the stories
+    def pkes = getIssuesOfNetwork(issue,issueTypePKE,"3",linkTypeRelatesTo).getIssues()
+
+    //get the sprint name for each story. The names must be updated as labels in the pke
+
+    Set<String> sprintNamesSet = new HashSet<String>()
+
+
+    stories.each {
+
+        //we create an issue
+        def myIssue = issueManager.getIssueObject(it.getId())
+
+        def mySprintAndReleaseName = getSprintAndReleaseName(myIssue)
+
+        sprintNamesSet.add(mySprintAndReleaseName)
+
+    }
+
+
+
+    //we should have only one common business request for all found stories
+    if (pkes.size()== 1){
+
+
+        //we create an issue
+        def myPKE = issueManager.getIssueObject(pkes.get(0).getId())
+
+        setLabels(myPKE,sprintNamesSet,customFieldName)
+    }
+
+
+    // not nice
+    println ""
+
+    // end of new stuff
+}
 
 
 def setReleaseAndSprintNamesInBusinesRequest(Issue issue,String customFieldName){
@@ -567,6 +619,7 @@ def syncExternalLinks(Issue issue){
     def issueTypeBusinessRequest = "Business Request"
     def issueTypeRequirement = "Requirement"
     def issueTypeTestCase = "Test Case"
+    def issueTypePKE = "PKE"
 
     //end customizig
 
@@ -575,13 +628,6 @@ def syncExternalLinks(Issue issue){
     //we need the IssueManager in order to create the issue of the the result of the query
     IssueManager issueManager = ComponentAccessor.getIssueManager()
 
-    //we need to know what kind of issue was updated
-    // the reason is, if it was an epic, then we have to select of all stories in network
-    // only those that are linked to the epic.
-    // Only those stories with an link to the epic will get copied the links
-    //Background: we get all issues linked directly and indirectly to the current issue.
-    //If the business request should have linked stories, which are not linked to the epic,
-    //then these are also included in the query result, when the update was done for an epic
 
     def currentIssueType = issue.getIssueTypeObject().getName()
 
@@ -597,6 +643,14 @@ def syncExternalLinks(Issue issue){
 
         issuesInNetwork = getIssuesOfNetwork(issue,"3","").getIssues()
     }
+
+
+    if(issue.getIssueTypeObject().getName()== issueTypePKE){
+
+        issuesInNetwork = getIssuesOfNetwork(issue,"3","relates_to").getIssues()
+    }
+
+
 
     if(issue.getIssueTypeObject().getName()== issueTypeStory){
 
@@ -626,6 +680,7 @@ def syncExternalLinks(Issue issue){
     List businessRequests = []
     List requirements = []
     List testCases = []
+    List pkes = []
 
     List remainingIssueTypes = []
 
@@ -667,6 +722,11 @@ def syncExternalLinks(Issue issue){
             testCases.add(item)
         }
 
+        else if (myIssue.getIssueTypeObject().getName() == issueTypePKE){
+
+            pkes.add(item)
+        }
+
 
 
         else {
@@ -681,13 +741,13 @@ def syncExternalLinks(Issue issue){
 
     }
 
-    configureSync(issue,businessRequests,epics,stories,requirements,testCases)
+    configureSync(issue,businessRequests,epics,stories,requirements,testCases,pkes)
 
 }
 
 
 
-def configureSync(Issue issue,List businessRequests, List Epics, List stories, List requirements, List testCases){
+def configureSync(Issue issue,List businessRequests, List Epics, List stories, List requirements, List testCases, List pkes){
 
 
     //start customizing
@@ -697,6 +757,7 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
     def issueTypeBusinessRequest = "Business Request"
     def issueTypeRequirement = "Requirement"
     def issueTypeTestCase = "Test Case"
+    def issueTypePke = "PKE"
 
     //end customizig
 
@@ -742,6 +803,33 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
     }
 
 
+    else if (issueTypeOfCurrentIssue == issueTypePke){
+
+
+
+        for (Issue item : stories){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+
+        for (Issue item : requirements){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+
+        for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+        // we trigger here that all external links are copied or deleted
+
+
+
+        copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
+
+
+    }
 
     else if (issueTypeOfCurrentIssue == issueTypeStory){
 
@@ -755,6 +843,12 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
         }
 
 
+        for(Issue item: pkes){
+            syncExternalLinks(item)
+        }
+
+
+        //-----------
 
 
         for (Issue item : requirements){
@@ -1120,6 +1214,7 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
 
 
             setReleaseAndSprintNamesInBusinesRequest(issue,customFieldNameSprintAndReleaseNames)
+            setReleaseAndSprintNamesInPKE(issue,customFieldNameSprintAndReleaseNames)
 
         }
 
@@ -1177,6 +1272,8 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
         }
 
         else {
+
+            //this method gets executet everytime we get an issue update, issue create or issue assign event
             syncExternalLinks(issue)
         }
     }
@@ -1196,6 +1293,7 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
 //-------------------------------------------
 //addSubTask()
 //setReleaseAndSprintNamesInBusinesRequest()
+//setReleaseAndSprintNamesInPKE()
 //syncExternalLinks()
 //handleIssueUpdateAndAssignEvents()
 //configureSync
