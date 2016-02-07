@@ -1,5 +1,5 @@
 // R.Wangemann
-// V1.0
+// V1.0.3
 
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
@@ -21,6 +21,10 @@ import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
 import com.atlassian.jira.jql.parser.JqlQueryParser
 import com.atlassian.jira.web.bean.PagerFilter
 import com.atlassian.crowd.embedded.api.User
+import org.apache.log4j.Category
+
+
+
 
 
 //method retrieves the current user
@@ -188,7 +192,7 @@ def getReleaseName(Issue issue){
     return release
 }
 
-// method reetrieves the assigend sprint of an issue
+// method retrieves the assigned sprint of an issue
 def getSprintName(Issue issue){
 
     ArrayList<Sprint> listOfSprints = (ArrayList<Sprint>) ComponentAccessor.getCustomFieldManager().getCustomFieldObjectByName("Sprint").getValue(issue);
@@ -197,7 +201,7 @@ def getSprintName(Issue issue){
 
    if(listOfSprints!=null){
 
-       //we only consider getting the first sprint in the list, event though more sprints can be assigened to an issue
+       //we only consider getting the first sprint in the list, event though more sprints can be assigned to an issue
             SprintName = (String)listOfSprints[0].getName()
         }
 
@@ -216,13 +220,13 @@ def setCustomFieldValue(Issue issue, String myValueToSave, CustomField myCustomF
     myMutableIssue.setCustomFieldValue(myCustomField,myValueToSave)
 
 
-    Map<String,ModifiedValue> modifiedfields = myMutableIssue.getModifiedFields()
+    Map<String,ModifiedValue> modifiedFields = myMutableIssue.getModifiedFields()
 
     FieldLayoutItem myFieldLayoutItem = ComponentAccessor.getFieldLayoutManager().getFieldLayout(myMutableIssue).getFieldLayoutItem(myCustomField)
 
     DefaultIssueChangeHolder myDefaultIssueChangeHolder = new DefaultIssueChangeHolder()
 
-    final ModifiedValue myModifiedValue = modifiedfields.get(myCustomField.getId())
+    final ModifiedValue myModifiedValue = modifiedFields.get(myCustomField.getId())
 
     myCustomField.updateValue(myFieldLayoutItem,myMutableIssue,myModifiedValue,myDefaultIssueChangeHolder)
 
@@ -390,6 +394,96 @@ def getSprintAndReleaseName(Issue issue){
     return sprintName
 }
 
+//removes first and last character from a String
+def removeFirstAndLastCharacterFromString(String myString){
+
+    //remove last character
+    myString = myString.substring(0, myString.length() - 1)
+
+    //remove first character
+    myString = myString.substring(1)
+
+    return myString
+}
+
+def getAlmSubject(Issue issue){
+
+    def sprint = getSprintName(issue)
+
+    def release = getReleaseName(issue)
+
+    def application_module = getCustomFieldValue(issue,".IT-App_Module")
+
+
+
+    //we only have to remove the brackets if a value in the field ".IT-App_Module" is found
+    if(application_module != null) {
+
+        //Unfortunately the value from a customfield is within []
+        //Therefore these two brackets have to be removed
+        application_module = removeFirstAndLastCharacterFromString(application_module)
+
+    }
+
+
+
+
+
+
+    def almSubject = ""
+
+
+    if(sprint != "" && release != null){
+
+        almSubject = release + "_" + sprint
+    }
+
+    if(sprint != "" && release == null) {
+
+        almSubject = "_"+sprint
+    }
+
+    if(sprint == "" && release != null) {
+
+        almSubject = "-"
+    }
+
+
+    if(application_module != null) {
+
+        almSubject = almSubject+"_"+application_module
+    }
+
+
+
+
+
+
+    // get rid of the blanks
+
+    StringTokenizer st = new StringTokenizer(almSubject," ")
+
+    String myValue = ""
+
+
+    while(st.hasMoreTokens()) {
+        if(myValue == ""){
+
+            myValue=myValue+st.nextToken()
+        }
+
+        else {
+            myValue=myValue + "_" + st.nextToken()
+        }
+
+
+    }
+
+    almSubject = myValue
+
+    return almSubject
+}
+
 
 
 def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
@@ -532,7 +626,7 @@ def setReleaseAndSprintNamesInPKE(Issue issue,String customFieldName){
 }
 
 
-def setReleaseAndSprintNamesInBusinesRequest(Issue issue,String customFieldName){
+def setReleaseAndSprintNamesInBusinessRequest(Issue issue, String customFieldName){
 
     //start customizing
 
@@ -621,7 +715,7 @@ def syncExternalLinks(Issue issue){
     def issueTypeTestCase = "Test Case"
     def issueTypePKE = "PKE"
 
-    //end customizig
+    //end customizing
 
 
 
@@ -694,7 +788,7 @@ def syncExternalLinks(Issue issue){
 
         def myIssueType = item.getIssueTypeObject().getName()
 
-        //we need the issueLinkMnager in order to be able to retriev the internal links for all stories
+        //we need the issueLinkMngr in order to be able to retrieve the internal links for all stories
         //as we only want to have those stories that have a relationship to an epic
         def issueLinkManager = ComponentAccessor.getIssueLinkManager()
 
@@ -759,7 +853,7 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
     def issueTypeTestCase = "Test Case"
     def issueTypePke = "PKE"
 
-    //end customizig
+    //end customizing
 
 
     //now prepare the list of issues to which we have to sync the links depending on the issue type of the
@@ -975,7 +1069,7 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
 
 
                 //get for the target issue all existing URLS of the existing external links
-                List targetURLsWithOrigineCurrentIssue = []
+                List targetURLsWithOriginCurrentIssue = []
 
                 List allTargetURLs = []
 
@@ -994,7 +1088,7 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
                         //We  onl want to check links, which were created by this current issue
                         if(sourceID == currentIssue.getKey()){
 
-                            targetURLsWithOrigineCurrentIssue.add(Url)
+                            targetURLsWithOriginCurrentIssue.add(Url)
 
                         }
 
@@ -1124,13 +1218,18 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
 
 def handleIssueUpdateAndAssignEvents(Issue issue){
 
+    //Configuration of logging
+    def Category log = Category.getInstance("com.onresolve.jira.groovy")
+    log.setLevel(org.apache.log4j.Level.DEBUG)
+    log.debug("------------BEGINN OF handleIssueUpdateAssignEvents()----------------")
+
     //begin customizing
 
     def customFieldNameRelease = ".Release"
     def customFieldNameSprint = ".Sprint"
     def customFieldNameSprintAndReleaseNames = ".Sprints"
     def customFieldNameDeveloper = ".Developer"
-    //def FieldNameComponent =
+    def customFieldNameAlmSubject = ".Alm_Subject"
     def nameOfPrefix = "DEV"
     def issueTypeNameSubTasks = "Sub-task"
     def issueTypeNameStory = "Story"
@@ -1152,7 +1251,15 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
     for (item in myList) {
 
         def field = event.getChangeLog().getRelated('ChildChangeItem').find{it.field == item}
+        def test = event.getChangeLog().getRelated('ChildChangeItem')
 
+        log.debug("-----TEST: ------"+test)
+        log.debug("item in list:"+item)
+        log.debug("field=" + field)
+
+        //make sure, that all the subtasks assigned to a story allways have the same components assigned to them.
+        //We need this functionality as the relationshipt between story and subtas is not a "relates to" relationship.
+        //Therefore we can not use the plugin (Exocert" functionality to copy the value along the "relates to" relationship.
 
         if (field != null && item == "Component") {
 
@@ -1187,41 +1294,56 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
 
         }//end of handling of components
 
-        if (field != null && item == "Fix Version"){
+
+        //if the field "fix version" was updated then, we copy the value the defined customfields
+
+        if (field != null && item == "Fix Version" || item == "Sprint"){
             fix_version_update = true
 
+            //copy the value to the customfields .Release and .Alm_Subject and .Sprint
+
+            //copy to --> .Release
             setLabel(issue,getReleaseName(issue),customFieldNameRelease)
-            setLabel(issue,getSprintAndReleaseName(issue),customFieldNameSprint)
+
+            //copy to --> .Sprint
+            setLabel(issue,getSprintName(issue),customFieldNameSprint)
+
+            //copy to --> .Alm_Subject
+            setLabel(issue,getAlmSubject(issue),customFieldNameAlmSubject)
+
 
             //if the release is changed but the sprint remains - which should not really be the case
             //then we must make sure, that this change is also available for the relevant business requests
+            setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames)
+            setReleaseAndSprintNamesInPKE(issue,customFieldNameSprintAndReleaseNames)
 
-            setReleaseAndSprintNamesInBusinesRequest(issue,customFieldNameSprintAndReleaseNames)
 
         }
-
+/**
         else if (field != null && item == "Sprint"){
 
 
             // set the name of the sprint name.
 
 
-            setLabel(issue,getSprintAndReleaseName(issue),customFieldNameSprint)
+            setLabel(issue,getSprintName(issue),customFieldNameSprint)
             setLabel(issue,getReleaseName(issue),customFieldNameRelease)
 
             // every time a sprint is added or changed, we have to update the issue business request
             // with all sprint names of all stories as labels
 
 
-            setReleaseAndSprintNamesInBusinesRequest(issue,customFieldNameSprintAndReleaseNames)
+            setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames)
             setReleaseAndSprintNamesInPKE(issue,customFieldNameSprintAndReleaseNames)
 
         }
 
-
+**/
 
 
         else if (field != null && item == "assignee") {
+
+            log.debug("--------------BEGINNN of assignee--------")
             assignee_update = true
 
             def issueType = issue.getIssueTypeObject().getName()
@@ -1233,7 +1355,8 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
             if(issueType == issueTypeNameSubTasks && keyWord == nameOfPrefix){
 
                 def newAssignee = field.newstring
-
+                log.debug("NewAssignee=" + newAssignee)
+                log.debug("issueType="+issueType)
 
                 // set for this issue of type sub task the customfield .Developer t
                 if (newAssignee == null) {newAssignee = ""}
@@ -1273,8 +1396,17 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
 
         else {
 
-            //this method gets executet everytime we get an issue update, issue create or issue assign event
+
+
+            //this method gets executed every time we get an issue update, issue create or issue assign event
+
+            //copy to --> .Alm_Subject
+            setLabel(issue,getAlmSubject(issue),customFieldNameAlmSubject)
+
+            //sync links
             syncExternalLinks(issue)
+
+
         }
     }
 
@@ -1292,7 +1424,7 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
 //The following methods MUST be customized according to the customizing of JIRA. The correct IssueTypeNames as defined in JIRA must be set
 //-------------------------------------------
 //addSubTask()
-//setReleaseAndSprintNamesInBusinesRequest()
+//setReleaseAndSprintNamesInBusinessRequest()
 //setReleaseAndSprintNamesInPKE()
 //syncExternalLinks()
 //handleIssueUpdateAndAssignEvents()
@@ -1305,11 +1437,11 @@ def handleIssueUpdateAndAssignEvents(Issue issue){
 
 
 //In order to retrieve the developer name of a sub-task the prefix of this sub-task must be set to "DEV"
-//The prefix must be customized accoringly.
+//The prefix must be customized accordingly.
 
 //The script can be triggered by an event or by a workflow.
 //If the trigger should be an event, then the flag in the method getCurrentIssue() must be set to "EV"
-//If the trigger is a worfklow, then the flag in teh method getCurrentIssue() must be set to "WV"
+//If the trigger is a workflow, then the flag in teh method getCurrentIssue() must be set to "WV"
 
 
 //This is the method, that will be executed
