@@ -580,6 +580,30 @@ def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
 
     }
 
+    else if(linkType=="is_validated_by"){
+
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"is validated by\")  ORDER BY issuetype DESC")
+
+    }
+
+    else if(linkType=="is_tested_by"){
+
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"is tested by\")  ORDER BY issuetype DESC")
+
+    }
+
+    else if(linkType=="tests"){
+
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"tests\")  ORDER BY issuetype DESC")
+
+    }
+
+    else if(linkType=="validats"){
+
+        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"validates\")  ORDER BY issuetype DESC")
+
+    }
+
 
     else {
         query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"" + linkType + "\")  ORDER BY issuetype DESC")
@@ -790,6 +814,7 @@ def syncExternalLinks(Issue issue){
     def issueTypeRequirement = "Requirement"
     def issueTypeTestCase = "Test Case"
     def issueTypePKE = "PKE"
+    def issueTypeBug = "Bug"
 
     //end customizing
 
@@ -807,41 +832,249 @@ def syncExternalLinks(Issue issue){
     // we don't limit the result based on type of relationship
     // we consider all types of issues
 
-    def issuesInNetwork
+    //List issuesInNetwork = []
+
+    Set<Issue> issuesInNetwork = new HashSet<Issue>()
+    def issueType
+    List myTempList = []
 
     if(issue.getIssueTypeObject().getName()== issueTypeBusinessRequest){
 
-        issuesInNetwork = getIssuesOfNetwork(issue,"3","").getIssues()
+        //gets all issues of type story and excludes the BusinessRequest
+        myTempList = getIssuesOfNetwork(issue,"3","relates to").getIssues()
+
+
+        for (Issue item : myTempList){
+            if(item.getIssueTypeObject().getName() != issueTypeBusinessRequest ){
+                issuesInNetwork.add(item)
+            }
+        }
+
+        //get the requirements for each story
+
+        myTempList = []
+
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeStory ){
+
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "is validated by").getIssues())
+
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
+        myTempList = []
+        //get the test cases for each requirement
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeRequirement ){
+
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "is tested by").getIssues())
+
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
+
+        //get the bugs for each test case
+        myTempList = []
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeTestCase ){
+
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "is blocked by").getIssues())
+
+            }
+        }
+        issuesInNetwork.addAll(myTempList)
+
     }
 
 
     if(issue.getIssueTypeObject().getName()== issueTypePKE){
 
-        issuesInNetwork = getIssuesOfNetwork(issue,"3","relates_to").getIssues()
+        //gets all issues of type story and excludes the PKE
+        myTempList =[]
+        for (Issue item : getIssuesOfNetwork(issue,"3","relates to").getIssues()){
+            if(item.getIssueTypeObject().getName() != issueTypePKE ){
+                myTempList.add(item)
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
+
+
+        //get the requirements for each story
+        myTempList = []
+
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeStory ){
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "is validated by").getIssues())
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
+
+
+        //get the testcases for each requirement
+        myTempList = []
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeRequirement ){
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "is tested by").getIssues())
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
+
+        //get the bugs for each testcase
+        myTempList = []
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeTestCase ){
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "is blocked by").getIssues())
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
     }
+
+
 
 
 
     if(issue.getIssueTypeObject().getName()== issueTypeStory){
 
-        issuesInNetwork = getIssuesOfNetwork(issue,"2","relates_to").getIssues()
+        //gets all issues of type PKE or Business Request
+        myTempList = []
+        for (Issue item : getIssuesOfNetwork(issue,"3","relates to").getIssues()){
+            if(item.getIssueTypeObject().getName() != issueTypeStory ){
+                myTempList.add(item)
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
+
+        //get the requirements for the story
+        myTempList = getIssuesOfNetwork(issue, "1", "is validated by").getIssues()
+        for (Issue item : myTempList){
+            issuesInNetwork.add(item)
+        }
+
+
+
+        //get the testcases for each requirement
+        myTempList = []
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeRequirement ){
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "is tested by").getIssues())
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
+
+        //get the bugs for each requirement
+        myTempList = []
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeTestCase ){
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "is blocked by").getIssues())
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
     }
 
 
     if(issue.getIssueTypeObject().getName()== issueTypeRequirement){
 
-        issuesInNetwork = getIssuesOfNetwork(issue,"2","relates_to").getIssues()
+        //get the test cases
+        myTempList = getIssuesOfNetwork(issue, "1", "is tested by").getIssues()
+        for(Issue item : myTempList){
+            issuesInNetwork.add(item)
+        }
+
+
+        //get the bugs for each test case
+        myTempList = []
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeTestCase ){
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "is blocked by").getIssues())
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
+        // get the stories
+        myTempList = getIssuesOfNetwork(issue, "1", "validates").getIssues()
+        for(Issue item : myTempList){
+            issuesInNetwork.add(item)
+        }
+
+
+        // get the business requests or PKEs
+        myTempList = []
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeStory ){
+                myTempList.addAll(getIssuesOfNetwork(item, "2", "is related").getIssues())
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
     }
 
     if(issue.getIssueTypeObject().getName()== issueTypeTestCase){
 
-        issuesInNetwork = getIssuesOfNetwork(issue,"3","relates_to").getIssues()
+        //get the bugs
+        myTempList = getIssuesOfNetwork(issue, "1", "is blocked").getIssues()
+        for (Issue item : myTempList){
+            issuesInNetwork.add(item)
+        }
+
+
+        // get the requirements
+        myTempList = getIssuesOfNetwork(issue, "1", "tests").getIssues()
+        for(Issue item : myTempList){
+            issuesInNetwork.add(item)
+        }
+
+
+        // get the stories
+        myTempList = []
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeRequirement ){
+                myTempList.addAll(getIssuesOfNetwork(item, "1", "validates").getIssues())
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
+
+        // get the business requests or PKEs
+        myTempList = []
+        for (Issue item : issuesInNetwork){
+            if(item.getIssueTypeObject().getName() == issueTypeStory ){
+                myTempList.addAll(getIssuesOfNetwork(item, "2", "is related").getIssues())
+            }
+        }
+
+        issuesInNetwork.addAll(myTempList)
+
     }
+
 
     if(issue.getIssueTypeObject().getName()== issueTypeEpic){
 
-        issuesInNetwork = getIssuesOfNetwork(issue,"2","is_Epic_of").getIssues()
+        myTempList = getIssuesOfNetwork(issue,"2","is_Epic_of").getIssues()
+        for (Issue item : myTempList){
+            issuesInNetwork.add(item)
+        }
     }
+
+
     //
     //sort all issues depending on their issueType
 
@@ -851,6 +1084,7 @@ def syncExternalLinks(Issue issue){
     List requirements = []
     List testCases = []
     List pkes = []
+    List bugs = []
 
     List remainingIssueTypes = []
 
@@ -897,27 +1131,22 @@ def syncExternalLinks(Issue issue){
             pkes.add(item)
         }
 
+        else if (myIssue.getIssueTypeObject().getName() == issueTypeBug){
 
-
-        else {
-
-                remainingIssueTypes.add(item)
+            bugs.add(item)
         }
-
-
-        println "z"
 
 
 
     }
 
-    configureSync(issue,businessRequests,epics,stories,requirements,testCases,pkes)
+    configureSync(issue,businessRequests,epics,stories,requirements,testCases,pkes,bugs)
 
 }
 
 
 
-def configureSync(Issue issue,List businessRequests, List Epics, List stories, List requirements, List testCases, List pkes){
+def configureSync(Issue issue,List businessRequests, List Epics, List stories, List requirements, List testCases, List pkes, List bugs){
 
 
     //start customizing
@@ -928,6 +1157,7 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
     def issueTypeRequirement = "Requirement"
     def issueTypeTestCase = "Test Case"
     def issueTypePke = "PKE"
+    def issueTypeBug = "Bug"
 
     //end customizing
 
@@ -963,6 +1193,10 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
            relevantIssuesToCopyLinksTo.add(item)
        }
 
+        for (Issue item : bugs){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
         // we trigger here that all external links are copied or deleted
 
 
@@ -989,6 +1223,10 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
 
 
         for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+        for (Issue item : bugs){
             relevantIssuesToCopyLinksTo.add(item)
         }
 
@@ -1030,6 +1268,10 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
             relevantIssuesToCopyLinksTo.add(item)
         }
 
+        for (Issue item : bugs){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
 
             copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
 
@@ -1050,11 +1292,11 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
 
 
 
-
-
-
-
         for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
+
+        for (Issue item : bugs){
             relevantIssuesToCopyLinksTo.add(item)
         }
 
@@ -1080,7 +1322,12 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
             syncExternalLinks(item)
         }
 
+        for (Issue item : bugs){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
 
+
+        copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
     }
 
 
@@ -1264,6 +1511,7 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
                             linkBuilder.applicationType(item.getApplicationType())
                             linkBuilder.applicationName(item.getApplicationName())
 
+
                             def newLink = linkBuilder.build()
 
 
@@ -1314,7 +1562,7 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
     def issueType = issue.getIssueTypeObject().getName()
 
     // These names should be standard in JIRA and not change from release to release
-    def listOfFieldNames = ["Component", "Fix Version", "Sprint", "assignee"]
+    def listOfFieldNames = ["description","Component", "Fix Version", "Sprint", "assignee"]
     def searchResult
     def field
 
@@ -1417,7 +1665,19 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 
         }
 
+        if (searchResult != null && field == "description"){
 
+            log.debug("Entering handling update of field: " + field)
+            long time = System.currentTimeMillis()
+
+            syncExternalLinks(issue)
+
+            log.debug("Leaving handling update of field: " + field)
+            long completedIn = System.currentTimeMillis() - time;
+            log.debug("Handling of an update of field :" + field +"took : " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
+
+
+        }
 
         if (searchResult != null && field == "assignee") {
 
@@ -1484,24 +1744,6 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
             println ""
         }
 
-        else {
-
-/**
-
-            //this method gets executed every time we get an issue update, issue create or issue assign event
-
-            //copy to --> .Alm_Subject
-            setLabel(issue,getAlmSubject(issue),customFieldNameAlmSubject)
-
-            //sync links
-            syncExternalLinks(issue)
-
-            log.setLevel(org.apache.log4j.Level.OFF)
-
- */
-        }
-
-
 
 
 
@@ -1544,7 +1786,7 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 
 def Category log = Category.getInstance("com.onresolve.jira.groovy")
 
-log.setLevel(org.apache.log4j.Level.DEBUG)
+log.setLevel(org.apache.log4j.Level.OFF)
 
 
 handleIssueUpdateAndAssignEvents(getCurrentIssue("EV"),log)
