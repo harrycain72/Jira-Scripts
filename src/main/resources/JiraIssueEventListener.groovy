@@ -1,5 +1,5 @@
 // R.Wangemann
-// V1.0.4
+// V1.0.5
 
 
 import com.atlassian.greenhopper.service.sprint.Sprint
@@ -31,7 +31,7 @@ import org.apache.log4j.Category
 
 
 
-//method retrieves the current user
+//method retrieves the current application user
 def getCurrentApplicationUser() {
     //determine current user
 
@@ -44,6 +44,14 @@ def getCurrentApplicationUser() {
 
 
     return CurrentUser
+}
+
+def getCurrentUser() {
+
+    //Security
+    jac = ComponentAccessor.getJiraAuthenticationContext()
+
+    currentUser = jac.getUser().getDirectoryUser()
 }
 
 //this method creates a comment
@@ -102,16 +110,14 @@ def checkIfSubTaskSummaryExists(Issue issue, String mySummaryToBeChecked) {
 
 
 //this method is responsible for the creation of subTask
-def addSubTask(Issue issue, String subTaskName, String subTaskDescription) {
+def addSubTask(Issue issue, String subTaskName, String subTaskSummary, String subTaskDescription) {
 
 
     //start customizing
 
-    def issueTypeIdForStory = "10001"
-    def issueTypeIdForSubTask = "10101"
+    def issueTypeIdForSubTask = "5"
 
     //end customizing
-
 
 
 
@@ -131,7 +137,19 @@ def addSubTask(Issue issue, String subTaskName, String subTaskDescription) {
 
     //getValues of current issue = parent
     issueObject.setParentId(issue.getId())
-    issueObject.setSummary(subTaskName + ': user story ' + issue.getSummary())
+
+
+    // set summary of subTask
+    if(subTaskSummary == "") {
+        issueObject.setSummary(subTaskName + ': user story ' + issue.getSummary())
+    }
+
+    else {
+        issueObject.setSummary(subTaskName + ": " + subTaskSummary)
+    }
+
+
+
     issueObject.setAssignee(issue.getAssignee())
     issueObject.setDescription(subTaskDescription)
     issueObject.setReporter(issue.getReporter())
@@ -140,8 +158,19 @@ def addSubTask(Issue issue, String subTaskName, String subTaskDescription) {
 
     //here we check if the value for the summary of a subtasks has already been used. We do not want to have
     //two subtasks with the same value.
-    def toBeCreatedSubTaskSummary = subTaskName + ': user story ' + issue.getSummary()
+    def toBeCreatedSubTaskSummary
+
+        if(subTaskSummary == ""){
+            toBeCreatedSubTaskSummary = subTaskName + ': user story ' + issue.getSummary()
+        }
+
+        else {
+            toBeCreatedSubTaskSummary = subTaskName + ": " + subTaskSummary
+        }
+
+
     checkResult = checkIfSubTaskSummaryExists(issue,toBeCreatedSubTaskSummary)
+
 
     // we only create our new SubTask if the the value of summary does not exist in any already defined subtask
     if (!checkResult) {
@@ -152,20 +181,22 @@ def addSubTask(Issue issue, String subTaskName, String subTaskDescription) {
         //Security
         //jac = ComponentAccessor.getJiraAuthenticationContext()
 
-        currentUser = getCurrentApplicationUser()
+        currentUser = getCurrentUser()
 
-        subTask = ism.createIssueObject(currentApplicationUser, issueObject)
+        subTask = ism.createIssueObject(currentUser, issueObject)
+
+
 
 
         //the created subtask is linked to the issue.This is done through the SubTaskMngr
 
         stm = ComponentAccessor.getSubTaskManager()
-        stm.createSubTaskIssueLink(issue, subTask, currentApplicationUser)
+        stm.createSubTaskIssueLink(issue, subTask, currentUser)
 
 
         // disable the watcher using the WatcherManager
         wtm = ComponentAccessor.getWatcherManager()
-        wtm.stopWatching(currentApplicationUser, subTask)
+        wtm.stopWatching(currentUser, subTask)
 
     }
 
@@ -617,7 +648,24 @@ def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
 }
 
 
+//this method selects all issues specified by the query which is input
+def getIssuesByQuery(Issue issue, String myQuery){
 
+    def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
+    def searchProvider = ComponentAccessor.getComponent(SearchProvider)
+    def issueManager = ComponentAccessor.getIssueManager()
+    def user = getCurrentApplicationUser()
+    def issueId = issue.getKey()
+    def query
+
+          query = jqlQueryParser.parseQuery(myQuery)
+
+    def issues = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter())
+
+
+    return issues
+
+}
 
 
 def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,String linkType, Category log){
@@ -1609,6 +1657,14 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
                 // get all SubTasks for the story
                 def subTasks = getIssuesOfNetwork(issue,issueTypeNameSubTasks,"1","",log).getIssues()
 
+                //
+
+
+                def issuetype = subTasks.get(0).getIssueTypeObject().getName()
+                def issuetypeid = subTasks.get(0).getIssueTypeObject().getId()
+
+                //
+
                 //we need the IssueManager in order to create the issue of the the result of the query
                 IssueManager issueManager = ComponentAccessor.getIssueManager()
 
@@ -1750,6 +1806,57 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 }
 
 
+def handleIssueTypeOrder(Issue issue){
+
+    //** customizing **
+
+    def issueTypeOrder = "Order"
+    def customFieldOrder = ".Order"
+
+    def orderId = "09071972"//issue.getSummary()
+    def issueType = issue.getIssueTypeObject().getName()
+    def issues
+
+    if(issueType == issueTypeOrder){
+
+        issues = selectIssues(issue,orderId,customFieldOrder)
+    }
+
+    for (Issue item : issues){
+
+        addSubTask(issue,item.getKey(),item.getSummary(),item.getKey()+": "+ item.getSummary())
+    }
+
+    println ""
+
+
+}
+
+def selectIssues(Issue issue, String orderId, String customFieldOrder){
+
+    def query = ""
+    def queryResult
+    def issues = new HashSet<Issue>()
+
+    query = customFieldOrder + "= \"" + orderId + "\""
+
+
+    queryResult =getIssuesByQuery(issue,query).getIssues()
+
+
+
+    //we need the IssueManager in order to create the issue of the the result of the query
+    IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+    for(Issue item : queryResult){
+
+        issues.add(issueManager.getIssueObject(item.getId()))
+    }
+
+    return issues
+}
+
+
 
 // READ ME:
 
@@ -1783,13 +1890,20 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 //This is the method, that will be executed
 
 
-
+//logging
 def Category log = Category.getInstance("com.onresolve.jira.groovy")
 
 log.setLevel(org.apache.log4j.Level.OFF)
 
 
-handleIssueUpdateAndAssignEvents(getCurrentIssue("EV"),log)
+//------
+
+//handleIssueUpdateAndAssignEvents(getCurrentIssue("EV"),log)
+
+handleIssueTypeOrder(getCurrentIssue("EV"))
+
+
+
 
 
 
