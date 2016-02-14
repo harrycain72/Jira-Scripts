@@ -214,7 +214,7 @@ def getReleaseName(Issue issue){
 
     ArrayList myListReleases = (ArrayList)issue.getFixVersions()
 
-    def release = ""
+    def release = "-"
 
     if(myListReleases!=null){
 
@@ -225,7 +225,6 @@ def getReleaseName(Issue issue){
 
     }
 
-    if(release == null) { release = "-"}
 
     return release
 }
@@ -448,23 +447,28 @@ def getCurrentIssue(String flag){
 
 def getSprintAndReleaseName(Issue issue){
 
+    //sprint name is "-" if not assigned to issue
     def sprint = getSprintName(issue)
 
+    //release name is "-" if not assigned to issue
     def release = getReleaseName(issue)
 
     def sprintName
 
-    if(sprint != "" && release != null){
+    //sprint and release are assigned to issue
+    if(sprint != "-" && release != "-"){
 
         sprintName = release + "_" + sprint
     }
 
-    if(sprint != "" && release == null) {
+    //only sprint assigned
+    if(sprint != "-" && release == "-") {
 
         sprintName = "_"+sprint
     }
 
-    if(sprint == "" && release != null) {
+    //only release assigned
+    if(sprint == "-" && release != "-") {
 
         sprintName = "-"
     }
@@ -789,7 +793,7 @@ def setReleaseAndSprintNamesInPKE(Issue issue,String customFieldName,log){
         //we create an issue
         def myPKE = issueManager.getIssueObject(pkes.get(0).getId())
 
-        setLabels(myPKE,sprintNamesSet,customFieldName)
+        setLabels(myPKE,sprintNamesSet,customFieldName,log)
     }
 
 
@@ -2159,9 +2163,9 @@ log.setLevel(org.apache.log4j.Level.OFF)
 
 //------
 
-//handleIssueUpdateAndAssignEvents(getCurrentIssue("EV"),log)
+handleIssueUpdateAndAssignEvents(getCurrentIssue("EV"),log)
 
-handleIssueTypeOrder(getCurrentIssue("EV"))
+//handleIssueTypeOrder(getCurrentIssue("EV"))
 
 
 
