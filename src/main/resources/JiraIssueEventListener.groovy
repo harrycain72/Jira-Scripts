@@ -205,7 +205,7 @@ def getSprintName(Issue issue){
 
     ArrayList<Sprint> listOfSprints = (ArrayList<Sprint>) ComponentAccessor.getCustomFieldManager().getCustomFieldObjectByName("Sprint").getValue(issue);
 
-    def SprintName =""
+    def SprintName ="-"
 
    if(listOfSprints!=null){
 
@@ -273,6 +273,8 @@ def setLabel(Issue issue, String newValue, String fieldName, Category log){
     //debugging
     log.debug("Entering setLabel for issue: " + issue.getKey() +" and field " + fieldName)
     long time= System.currentTimeMillis()
+
+    if (newValue == ""){ newValue ="-"}
 
     //we should always have a value for a label!
     if(newValue !=""){
@@ -500,8 +502,8 @@ def getAlmSubject(Issue issue){
 
     def almSubject = ""
 
-
-    if(sprint != "" && release != null){
+    //release and sprint ar assigned to the issue
+    if(sprint != "-" && release != "-"){
 
         if(application_module != null ){
             almSubject = release + "_" + application_module + "_" + sprint
@@ -509,13 +511,13 @@ def getAlmSubject(Issue issue){
 
         else {
 
-            almSubject = release + "_" + sprint + "_---"
+            almSubject = release + "_---_" + sprint
         }
     }
 
 
-
-    if(sprint != "" && release == null) {
+    //only sprint is assigned to the issue
+    if(sprint != "-" && release == "-") {
 
         if(application_module != null) {
             almSubject = "---_" + application_module + "_" + sprint
@@ -525,14 +527,25 @@ def getAlmSubject(Issue issue){
         }
 
     }
-
-    if(sprint == "" && release != null) {
+    //only release is assigned to the issue
+    if(sprint == "-" && release != "-") {
 
         if(application_module != null) {
             almSubject = release +"_"+application_module+"_---"
         }
         else {
             almSubject = release + "_---_---"
+        }
+
+    }
+    //neither release or sprint is assigned to the issue
+    if(sprint == "-" && release == "-") {
+
+        if(application_module != null) {
+            almSubject = "---_"+application_module+"_---"
+        }
+        else {
+            almSubject = release + "---_---_---"
         }
 
     }
