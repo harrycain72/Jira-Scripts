@@ -1,10 +1,8 @@
 /**
  * Created by roland on 14.02.16.
  */
-
-import scripts.util.Helper
 import com.atlassian.jira.event.issue.IssueEvent
-import scripts.util.Helper
+import util.Helper
 import com.atlassian.jira.issue.Issue
 
 

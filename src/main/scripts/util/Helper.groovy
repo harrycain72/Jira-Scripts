@@ -1,4 +1,4 @@
-package scripts.util
+package util
 
 import com.atlassian.greenhopper.service.sprint.Sprint
 import com.atlassian.gzipfilter.org.apache.commons.lang.time.DurationFormatUtils
