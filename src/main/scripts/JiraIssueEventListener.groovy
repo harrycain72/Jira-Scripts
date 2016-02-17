@@ -2074,8 +2074,8 @@ def handleIssueTypeOrder(Issue issue){
 
     //** customizing **
 
-    def issueTypeOrder = "Order"
-    def customFieldOrder = ".Order"
+    def issueTypeOrder = "OrderIssueEventHandler"
+    def customFieldOrder = ".OrderIssueEventHandler"
 
     def orderId = "09071972"//issue.getSummary()
     def issueType = issue.getIssueTypeObject().getName()
