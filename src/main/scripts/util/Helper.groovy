@@ -5,12 +5,15 @@ import com.atlassian.gzipfilter.org.apache.commons.lang.time.DurationFormatUtils
 import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
 import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
+import com.atlassian.jira.event.type.EventDispatchOption
 import com.atlassian.jira.issue.Issue
 import com.atlassian.jira.issue.IssueManager
 import com.atlassian.jira.issue.ModifiedValue
 import com.atlassian.jira.issue.MutableIssue
 import com.atlassian.jira.issue.fields.CustomField
 import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
+import com.atlassian.jira.issue.history.ChangeItemBean
+import com.atlassian.jira.issue.issuetype.IssueType
 import com.atlassian.jira.issue.label.LabelManager
 import com.atlassian.jira.issue.link.DefaultRemoteIssueLinkManager
 import com.atlassian.jira.issue.link.RemoteIssueLink
@@ -20,9 +23,20 @@ import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
 import com.atlassian.jira.jql.parser.JqlQueryParser
 import com.atlassian.jira.user.ApplicationUser
 import com.atlassian.jira.user.util.UserUtil
+import com.atlassian.jira.util.JiraUtils
 import com.atlassian.jira.web.bean.PagerFilter
 import com.atlassian.crowd.embedded.api.User
+import com.atlassian.jira.workflow.JiraWorkflow
+import com.atlassian.jira.workflow.WorkflowTransitionUtil
+import com.atlassian.jira.workflow.WorkflowTransitionUtilImpl
+import com.opensymphony.workflow.WorkflowContext
 import org.apache.log4j.Category
+import com.atlassian.jira.project.Project
+
+import java.sql.Connection
+import java.sql.Driver
+import java.sql.PreparedStatement
+import java.sql.ResultSet
 
 
 /**
@@ -35,7 +49,14 @@ class Helper {
 
 
 //method retrieves the current application user
+
+    Helper() {
+    }
+
     def ApplicationUser getCurrentApplicationUser() {
+
+        def jac
+
         //determine current user
 
         //Security
@@ -45,30 +66,67 @@ class Helper {
 
         currentUser = jac.getUser()
 
-        retun currentUser
+        return currentUser
     }
 
+
+    def User getCurrentUserWF() {
+
+        try {
+            String currentUser = ((WorkflowContext) transientVars.get("context")).getCaller()
+
+            //Security
+            UserUtil userUtil = ComponentAccessor.getUserUtil()
+
+            //Use getUserByKey(String) or getUserByName(String) instead. Since v6.0.
+            User user = userUtil.getUser(currentUser)
+        }
+
+        catch (all){
+
+        }
+
+
+
+
+    }
+
+
     def User getCurrentUser() {
+
+        def jac
+        def currentUser
 
         //Security
         jac = ComponentAccessor.getJiraAuthenticationContext()
 
         currentUser = jac.getUser().getDirectoryUser()
+
+        return currentUser
     }
 
 
     def User getUserbyName(String nameOfUser){
 
+        def jac
+        def user
+
         //Security
+        UserUtil userUtil = ComponentAccessor.getUserUtil()
+
+
+
         jac = ComponentAccessor.getJiraAuthenticationContext()
 
-        ApplicationUser applicationUser = userUtil.getUserByName(userName)
+        ApplicationUser applicationUser = userUtil.getUserByName(nameOfUser)
 
         user = applicationUser.getDirectoryUser()
     }
 
 //this method creates a comment
     def addComment(Issue issue, String myComment) {
+
+        def cmm
 
         cmm = ComponentAccessor.getCommentManager()
 
@@ -82,6 +140,8 @@ class Helper {
 //this method gets the value of a customfield value by its name
     def getCustomFieldValue(Issue issue, String myCustomField) {
 
+        def cfm
+
         cfm = ComponentAccessor.getCustomFieldManager()
 
         CustomField customField = cfm.getCustomFieldObjectByName(myCustomField);
@@ -94,6 +154,8 @@ class Helper {
 
 // this method returns a customfield
     def getCustomField(String myCustomFieldName) {
+
+        def cfm
 
         cfm = ComponentAccessor.getCustomFieldManager()
 
@@ -125,65 +187,114 @@ class Helper {
     }
 
 
-    def createIssue(String projectKey, String issueType, String summary, String description, String reporter){
+    //delivers the Jira-Project based on ProjectKey
+    def Project getProject(String projectKey){
 
-        //start customizing
-
-        def issueTypeIdStory = 1
-
-        //end customizing
-
-        def issueTypeId
-
-        If(issueType == "story"){
-            issueTypeId = issueTypeIdStory
-        }
-
+        def pjm  // project mngr
         def project
 
         try {
-
-            //Instanzierung der factories
-            isf = ComponentAccessor.getIssueFactory()
             pjm  = ComponentAccessor.getProjectManager()
 
-            //IssueFactory: we create her a generic issue
-            def issueObject = isf.getIssue()
+            project = pjm.getProjectByCurrentKey(projectKey) // get the relevant project
+        }
+
+        catch (all){
+
+        }
+
+
+
+        return project
+
+
+    }
+
+
+    //gets a specific IssueType
+    def IssueType getIssueType(String issueType, Project project){
+
+        def IssueType myIssueType
+
+        def itsm //IssueTypeSchemeMngr
+
+
+        try {
+
+            itsm = ComponentAccessor.getIssueTypeSchemeManager()
+
+            Collection<IssueType> issueTypes = itsm.getIssueTypesForProject(project)
+
+            for(IssueType type : issueTypes){
+
+                def name = type.getName() //retrieves the name of the IssueType
+
+                if(type.getName() == issueType){
+
+                    myIssueType = type
+
+                    break
+                }
+
+            }
+
+        }
+
+        catch (all){
+
+        }
+
+        return myIssueType
+
+    }
+
+    def createIssue(String projectKey, String issueType, String summary, String description, String reporter, User currentUser){
+
+        def project //Jira-Project
+        def isf  // issue factory
+        def ism  //issueManager
+        def issue // Issue
+
+        try {
+
+            //Instanzierung der factorie
+            isf = ComponentAccessor.getIssueFactory()
+
+
+            //IssueFactory: we create here a generic issue
+            def mutableIssue = isf.getIssue()
+
+
 
 
             //configure the issue
 
                 //set the project for the issue
 
-                project = pjm.getProjectByCurrentKey(projectKey) // get the relevant project
+                project = getProject(projectKey) // get the relevant project
 
-                issueObject.setProjectObject(project) // assign the project to the issue
+                mutableIssue.setProjectObject(project) // assign the project to the issue
 
-
-                //set the desired IssueType
-                issueObject.setIssueTypeId(issueTypeIdStory)
+                mutableIssue.setIssueTypeObject(getIssueType(issueType,project)) //get and set IssueType
 
                 //set the summary
-                issueObject.setSummary(summary)
+                mutableIssue.setSummary(summary)
 
                 //set the description
-                issueObject.setDescription(summary)
+                mutableIssue.setDescription(description)
 
                 //set reporter
-                issueObject.setReporter(getUserbyName(reporter))
-
+                mutableIssue.setReporter(currentUser)
 
 
             //the issue gets created with the IssueMngr
-            def ism
+
+
             ism = ComponentAccessor.getIssueManager()
 
-            //Security
+            issue = ism.createIssueObject(currentUser, mutableIssue)
 
-            def currentUser
-            currentUser = getCurrentUser()
-
-            ism.createIssueObject(currentUser, issueObject)
+            return issue
 
 
         }
@@ -195,6 +306,71 @@ class Helper {
 
 
     }
+
+    //gets a database connection
+    def Connection getDatabaseConnection(String databaseProduct,String databaseHost, String database, String user, String passwd){
+
+        def driver
+        def databaseClassName // classname for JDBC driver
+        def props //database properties
+        def Connection conn //database connection
+
+
+
+        //properties in order to connect to the database
+        props = new Properties()
+        props.setProperty("user", user)
+        props.setProperty("password", passwd)
+
+        if(databaseProduct == "mysql"){
+            databaseClassName  = "com.mysql.jdbc.Driver"
+            driver = Class.forName(databaseClassName).newInstance() as Driver
+            conn = driver.connect("jdbc:mysql://"+databaseHost+"/"+database, props)
+            //conn = driver.connect("jdbc:mysql://127.0.0.1:3306/sakila",props)
+        }
+
+        if(database == "oracle"){
+            databaseClassName  = "oracle.jdbc.OracleDriver"
+            driver = Class.forName(databaseClassName).newInstance() as Driver
+        }
+
+
+
+        return conn
+
+
+    }
+
+
+    //executes a query and delivers the result in a ResultSet
+    def ResultSet executeSqlQuery (String sqlQuery,Connection connection){
+
+
+        def PreparedStatement pstmt
+        def ResultSet rs = null
+
+        pstmt = connection.prepareCall(sqlQuery)
+
+
+        try {
+            rs = pstmt.executeQuery()
+
+            }
+
+        catch (all) {
+
+        }
+
+        //connection.close()
+
+        return rs
+
+    }
+
+
+
+
+
 
 
 //this method is responsible for the creation of subTask
@@ -212,6 +388,7 @@ class Helper {
 
 
         //Instanzierung der factories
+        def isf
         isf = ComponentAccessor.getIssueFactory()
 
         //IssueFactory: we create her a generic issue
@@ -256,7 +433,7 @@ class Helper {
             toBeCreatedSubTaskSummary = subTaskName + ": " + subTaskSummary
         }
 
-
+        def checkResult
         checkResult = checkIfSubTaskSummaryExists(issue,toBeCreatedSubTaskSummary)
 
 
@@ -386,18 +563,19 @@ class Helper {
 
     }
 
-    def setLabel(Issue issue, String newValue, String fieldName, Category log){
+    def setLabelCustomField(Issue issue, String newValue, String fieldName){
 
 
 
-        //debugging
-        log.debug("Entering setLabel for issue: " + issue.getKey() +" and field " + fieldName)
+
         long time= System.currentTimeMillis()
 
         if (newValue == ""){ newValue ="-"}
 
         //we should always have a value for a label!
         if(newValue !=""){
+
+            def customFieldManager
 
             LabelManager labelManager = ComponentAccessor.getComponent(LabelManager.class)
 
@@ -408,33 +586,64 @@ class Helper {
             Set<String> set = convertToSetForLabels((String) newValue)
 
 
-            log.debug("before update for field" + fieldName )
+
             labelManager.setLabels(getCurrentApplicationUser().getDirectoryUser(),issue.getId(),customField.getIdAsLong(),set,false,true)
-            log.debug("after update for field " + fieldName )
+
+
+        }
+
+    }
+
+// sets n labels in the standard JIRA labels field for a specific issue
+    def setLabelJiraField(Issue issue, Set labels){
+
+        def issueManager = ComponentAccessor.getIssueManager()
+        def MutableIssue mutableIssue = issue
+        def labelsWithoutBlanks = removeBlanksFromLabels(labels)
+
+        mutableIssue.setLabels(labelsWithoutBlanks)
+        issueManager.updateIssue(getCurrentUser(),mutableIssue,EventDispatchOption.DO_NOT_DISPATCH, false)
+
+    }
+
+//replaces all blanks with _  . This is necessary as labels are not allowed to contain a blank.
+    def removeBlanksFromLabels(Set labels){
+
+        Set<String> set = new HashSet<String>()
+
+
+        for(String item : labels){
+
+
+
+            StringTokenizer st = new StringTokenizer(item," ")
+
+            String myValue = ""
+
+
+            while(st.hasMoreTokens()) {
+                if(myValue == ""){
+
+                    myValue=myValue+st.nextToken()
+                }
+
+                else {
+                    myValue=myValue + "_" + st.nextToken()
+                }
+
+
+            }
+
+            set.add(myValue)
 
         }
 
 
 
 
-        //debugging
-        log.debug("Leaving setLabel for issue: " + issue.getKey() +" and field " + fieldName)
-        long completedIn = System.currentTimeMillis() - time;
-        log.debug("Setting label for issue :" + issue.getKey() +" and for field " + fieldName +" took: " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
 
-    }
+        return set
 
-// sets n labels for a specific issue
-    def setLabels(Issue issue, Set labels, String fieldName,Category log){
-
-        LabelManager labelManager = ComponentAccessor.getComponent(LabelManager.class)
-        customFieldManager = ComponentAccessor.getCustomFieldManager()
-
-        CustomField customField = customFieldManager.getCustomFieldObjectByName(fieldName)
-
-        log.debug("before update of label for field "+ customField)
-        labelManager.setLabels(getCurrentApplicationUser().getDirectoryUser(),issue.getId(),customField.getIdAsLong(),labels,false,true)
-        log.debug("after update of label for field " + customField)
     }
 
 
@@ -687,6 +896,22 @@ class Helper {
         return almSubject
     }
 
+    // returns one or more issues based on the defined query.
+    def getIssuesByQuery(String myQuery){
+
+        def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
+        def searchProvider = ComponentAccessor.getComponent(SearchProvider)
+        def user = getCurrentApplicationUser()
+        def parsedQuery
+
+
+        parsedQuery = jqlQueryParser.parseQuery(myQuery)
+
+        def issues = searchProvider.search(parsedQuery, user, PagerFilter.getUnlimitedFilter())
+
+        return issues
+
+    }
 
 
     def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
@@ -763,24 +988,7 @@ class Helper {
     }
 
 
-//this method selects all issues specified by the query which is input
-    def getIssuesByQuery(Issue issue, String myQuery){
 
-        def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
-        def searchProvider = ComponentAccessor.getComponent(SearchProvider)
-        def issueManager = ComponentAccessor.getIssueManager()
-        def user = getCurrentApplicationUser()
-        def issueId = issue.getKey()
-        def query
-
-        query = jqlQueryParser.parseQuery(myQuery)
-
-        def issues = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter())
-
-
-        return issues
-
-    }
 
 
     def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,String linkType, Category log){
@@ -868,7 +1076,7 @@ class Helper {
             //we create an issue
             def myPKE = issueManager.getIssueObject(pkes.get(0).getId())
 
-            setLabels(myPKE,sprintNamesSet,customFieldName,log)
+            setLabels(myPKE, sprintNamesSet, customFieldName)
         }
 
 
@@ -879,7 +1087,7 @@ class Helper {
     }
 
 
-    def setReleaseAndSprintNamesInBusinessRequest(Issue issue, String customFieldName,Category log){
+    def setReleaseAndSprintNamesInBusinessRequest(Issue issue, String customFieldName){
 
         //start customizing
 
@@ -888,10 +1096,6 @@ class Helper {
         def linkTypeRelatesTo = "relates to"
 
         //end customizing
-
-        //debugging
-        log.debug("Entering getReleaseAndSprintNamesInBusinessRequest: " + issue.getKey() +" and field " + customFieldName)
-        long time= System.currentTimeMillis()
 
 
 
@@ -929,15 +1133,8 @@ class Helper {
             //we create an issue
             def myBusinessRequest = issueManager.getIssueObject(businessRequests.get(0).getId())
 
-            setLabels(myBusinessRequest,sprintNamesSet,customFieldName,log)
+            setLabels(myBusinessRequest, sprintNamesSet, customFieldName)
         }
-
-
-
-        //debugging
-        log.debug("Leaving getReleaseAndSprintNamesInBusinessRequest: " + issue.getKey() +" and field " + customFieldName)
-        long completedIn = System.currentTimeMillis() - time;
-        log.debug("getReleaseAndSprintNamesInBusinessRequest for issue :" + issue.getKey() +"took time: " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
 
 
 
@@ -1754,6 +1951,29 @@ class Helper {
 
         return issues
     }
+
+
+
+    def  setWorkflowTransition(Issue issue,User currentUser){
+
+        def mutableIssue = (MutableIssue)issue
+        def status
+
+        WorkflowTransitionUtil workflowTransitionUtil = ( WorkflowTransitionUtil ) JiraUtils.loadComponent( WorkflowTransitionUtilImpl.class )
+
+        workflowTransitionUtil.setIssue(mutableIssue)
+        workflowTransitionUtil.setUsername(currentUser.getName())
+
+        //Transitions toDo(11) inProgress(21) Done(31)
+
+        workflowTransitionUtil.setAction(21)
+        workflowTransitionUtil.validate()
+        workflowTransitionUtil.progress()
+
+
+
+    }
+
 
 
 
