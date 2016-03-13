@@ -163,13 +163,13 @@ def addSubTask(Issue issue, String subTaskName, String subTaskSummary, String su
     //two subtasks with the same value.
     def toBeCreatedSubTaskSummary
 
-        if(subTaskSummary == ""){
-            toBeCreatedSubTaskSummary = subTaskName + ': user story ' + issue.getSummary()
-        }
+    if(subTaskSummary == ""){
+        toBeCreatedSubTaskSummary = subTaskName + ': user story ' + issue.getSummary()
+    }
 
-        else {
-            toBeCreatedSubTaskSummary = subTaskName + ": " + subTaskSummary
-        }
+    else {
+        toBeCreatedSubTaskSummary = subTaskName + ": " + subTaskSummary
+    }
 
 
     checkResult = checkIfSubTaskSummaryExists(issue,toBeCreatedSubTaskSummary)
@@ -210,7 +210,7 @@ def addSubTask(Issue issue, String subTaskName, String subTaskSummary, String su
 //Method retrieves the Fixed Version name of the current issue
 def getReleaseName(Issue issue){
 
-   // MutableIssue myMutableIssue = (MutableIssue)issue;// Flag EV is necessary to be able to be triggered by an event / listener
+    // MutableIssue myMutableIssue = (MutableIssue)issue;// Flag EV is necessary to be able to be triggered by an event / listener
 
     ArrayList myListReleases = (ArrayList)issue.getFixVersions()
 
@@ -236,13 +236,13 @@ def getSprintName(Issue issue){
 
     def SprintName ="-"
 
-   if(listOfSprints!=null){
+    if(listOfSprints!=null){
 
-       //we only consider getting the first sprint in the list, event though more sprints can be assigned to an issue
-            SprintName = (String)listOfSprints[0].getName()
-        }
+        //we only consider getting the first sprint in the list, event though more sprints can be assigned to an issue
+        SprintName = (String)listOfSprints[0].getName()
+    }
 
-   else {
+    else {
         //do something else
 
     }
@@ -300,7 +300,7 @@ def setLabel(Issue issue, String newValue, String fieldName, Category log){
 
 
     //debugging
-    log.debug("Entering setLabelCustomField for issue: " + issue.getKey() +" and field " + fieldName)
+    log.debug("Entering setLabel for issue: " + issue.getKey() +" and field " + fieldName)
     long time= System.currentTimeMillis()
 
     if (newValue == ""){ newValue ="-"}
@@ -327,7 +327,7 @@ def setLabel(Issue issue, String newValue, String fieldName, Category log){
 
 
     //debugging
-    log.debug("Leaving setLabelCustomField for issue: " + issue.getKey() +" and field " + fieldName)
+    log.debug("Leaving setLabel for issue: " + issue.getKey() +" and field " + fieldName)
     long completedIn = System.currentTimeMillis() - time;
     log.debug("Setting label for issue :" + issue.getKey() +" and for field " + fieldName +" took: " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
 
@@ -431,7 +431,7 @@ def getCurrentIssue(String flag){
     def myIssue
 
     if(flag == "WF"){
-      myIssue =(Issue)issue
+        myIssue =(Issue)issue
     }
 
     if(flag == "EV"){
@@ -633,7 +633,7 @@ def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
 
     }
 
-     else if(linkType=="relates_to"){
+    else if(linkType=="relates_to"){
 
         query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"relates to\")  ORDER BY issuetype DESC")
 
@@ -698,7 +698,7 @@ def getIssuesByQuery(Issue issue, String myQuery){
     def issueId = issue.getKey()
     def query
 
-          query = jqlQueryParser.parseQuery(myQuery)
+    query = jqlQueryParser.parseQuery(myQuery)
 
     def issues = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter())
 
@@ -878,7 +878,7 @@ def updateComponents(Issue issue, Collection<ProjectComponent> components){
 
     User user = getCurrentApplicationUser().getDirectoryUser()
 
-   issueManager.updateIssue(user,mutableIssue,com.atlassian.jira.event.type.EventDispatchOption.DO_NOT_DISPATCH,false)
+    issueManager.updateIssue(user,mutableIssue,com.atlassian.jira.event.type.EventDispatchOption.DO_NOT_DISPATCH,false)
 
 
 }
@@ -1268,18 +1268,18 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
 
 
 
-       for (Issue item : stories){
-           relevantIssuesToCopyLinksTo.add(item)
-       }
+        for (Issue item : stories){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
 
         for (Issue item : requirements){
-           relevantIssuesToCopyLinksTo.add(item)
-       }
+            relevantIssuesToCopyLinksTo.add(item)
+        }
 
 
-       for (Issue item : testCases){
-           relevantIssuesToCopyLinksTo.add(item)
-       }
+        for (Issue item : testCases){
+            relevantIssuesToCopyLinksTo.add(item)
+        }
 
         for (Issue item : bugs){
             relevantIssuesToCopyLinksTo.add(item)
@@ -1289,7 +1289,7 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
 
 
 
-            copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
+        copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
 
 
     }
@@ -1361,7 +1361,7 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
         }
 
 
-            copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
+        copyAndDeleteExternalLinks(issue,relevantIssuesToCopyLinksTo)
 
 
 
@@ -1470,152 +1470,152 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
         for (Issue itemInList : issuesToCopyLinksTo){
 
 
-                //get the first issue for which we want the link to be copied to
-                def newIssue = getIssueByKey(itemInList.getKey())
+            //get the first issue for which we want the link to be copied to
+            def newIssue = getIssueByKey(itemInList.getKey())
 
 
 
-                //get all remote links = external links for the target issue
-                List targetLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(newIssue)
+            //get all remote links = external links for the target issue
+            List targetLinks = remoteIssueLinkManager.getRemoteIssueLinksForIssue(newIssue)
 
 
-                //get for the target issue all existing URLS of the existing external links
-                List targetURLsWithOriginCurrentIssue = []
+            //get for the target issue all existing URLS of the existing external links
+            List targetURLsWithOriginCurrentIssue = []
 
-                List allTargetURLs = []
+            List allTargetURLs = []
 
-                //create a list of all available targetURLS with origin current issue.
-                // all other external links we do not touch
+            //create a list of all available targetURLS with origin current issue.
+            // all other external links we do not touch
 
-                if (targetLinks.size() != 0) {
+            if (targetLinks.size() != 0) {
 
-
-                    for (RemoteIssueLink item : targetLinks){
-
-                        def Url = item.getUrl()
-                        def sourceID = item.getSummary()
-
-
-                        //We  onl want to check links, which were created by this current issue
-                        if(sourceID == currentIssue.getKey()){
-
-                            targetURLsWithOriginCurrentIssue.add(Url)
-
-                        }
-
-                        allTargetURLs.add(Url)
-
-                    }
-
-                }
-
-
-                //create a list for only the links that do not exist in the target issue
-                //For this we check if in the list of all URLs existing in the target issue,
-                //the URLs of all available links in the source issue exist.
-                List relevantLinks = []
-
-                for (RemoteIssueLink item : sourceLinks){
-
-                        def found = allTargetURLs.find{it == item.getUrl()}
-
-                        if (found == null) {
-
-                            relevantLinks.add(item)
-                        }
-
-                }
-
-
-
-                //create a list for those links, that have been deleted in the original issue (type story) and still exist
-                //in the target issues. Remember, we want to have the links synchronized.
-
-
-                List linksToBeDeletedInTargetIssue = []
 
                 for (RemoteIssueLink item : targetLinks){
 
-                    //here we check if current issue was origin for the external link in target issue
-                    if (item.getSummary()==currentIssue.getKey()){
+                    def Url = item.getUrl()
+                    def sourceID = item.getSummary()
 
-                        def found = sourceURLs.find{it == item.getUrl()}
 
-                        if(found == null){
+                    //We  onl want to check links, which were created by this current issue
+                    if(sourceID == currentIssue.getKey()){
 
-                            linksToBeDeletedInTargetIssue.add(item)
-                        }
-
+                        targetURLsWithOriginCurrentIssue.add(Url)
 
                     }
 
-                }
-
-
-                //In order to create, delete or update a link we need the a remoteIssueLinkService
-                def remoteIssueLinkService = ComponentAccessor.getComponentOfType(DefaultRemoteIssueLinkService.class)
-
-
-                //first we have to delete the links in the target issue with origin source issue, but don't exist there anymore.
-
-                for (RemoteIssueLink item : linksToBeDeletedInTargetIssue) {
-
-                    def deleteValidationResult = remoteIssueLinkService.validateDelete(getCurrentApplicationUser(),item.getId())
-
-                    remoteIssueLinkService.delete(getCurrentApplicationUser(),deleteValidationResult)
+                    allTargetURLs.add(Url)
 
                 }
 
+            }
+
+
+            //create a list for only the links that do not exist in the target issue
+            //For this we check if in the list of all URLs existing in the target issue,
+            //the URLs of all available links in the source issue exist.
+            List relevantLinks = []
+
+            for (RemoteIssueLink item : sourceLinks){
+
+                def found = allTargetURLs.find{it == item.getUrl()}
+
+                if (found == null) {
+
+                    relevantLinks.add(item)
+                }
+
+            }
 
 
 
-                //second, we want to create the missing links
-                //For all relevant links we create an exact copy of every RemoteIssueLink
-                //first we need to configure our link 1:1 to the existing ones.
-
-                def linkBuilder = new RemoteIssueLinkBuilder()
-
-                        for (RemoteIssueLink item : relevantLinks) {
+            //create a list for those links, that have been deleted in the original issue (type story) and still exist
+            //in the target issues. Remember, we want to have the links synchronized.
 
 
+            List linksToBeDeletedInTargetIssue = []
 
-                            //we create an exact copy of the existing link
+            for (RemoteIssueLink item : targetLinks){
 
-                            //We only change the id of the issue
-                            linkBuilder.issueId(newIssue.getId())
-                            //We need the id of the source issue, just to be able to synchronize the links
-                            //When a link is deleted in the source issue, the same link should be deleted in the target issue(s)
-                            linkBuilder.summary(currentIssue.getKey())
+                //here we check if current issue was origin for the external link in target issue
+                if (item.getSummary()==currentIssue.getKey()){
 
+                    def found = sourceURLs.find{it == item.getUrl()}
 
+                    if(found == null){
 
-                            //we copy the rest
-                            linkBuilder.globalId(item.getGlobalId())
-                            linkBuilder.title(item.getTitle())
-                            linkBuilder.url(item.getUrl())
-                            linkBuilder.iconUrl(item.getIconUrl())
-                            linkBuilder.iconTitle(item.getIconTitle())
-                            linkBuilder.relationship(item.getRelationship())
-                            linkBuilder.applicationType(item.getApplicationType())
-                            linkBuilder.applicationName(item.getApplicationName())
+                        linksToBeDeletedInTargetIssue.add(item)
+                    }
 
 
-                            def newLink = linkBuilder.build()
+                }
+
+            }
 
 
-                            //check if the issue already has got this link assigned to
+            //In order to create, delete or update a link we need the a remoteIssueLinkService
+            def remoteIssueLinkService = ComponentAccessor.getComponentOfType(DefaultRemoteIssueLinkService.class)
+
+
+            //first we have to delete the links in the target issue with origin source issue, but don't exist there anymore.
+
+            for (RemoteIssueLink item : linksToBeDeletedInTargetIssue) {
+
+                def deleteValidationResult = remoteIssueLinkService.validateDelete(getCurrentApplicationUser(),item.getId())
+
+                remoteIssueLinkService.delete(getCurrentApplicationUser(),deleteValidationResult)
+
+            }
+
+
+
+
+            //second, we want to create the missing links
+            //For all relevant links we create an exact copy of every RemoteIssueLink
+            //first we need to configure our link 1:1 to the existing ones.
+
+            def linkBuilder = new RemoteIssueLinkBuilder()
+
+            for (RemoteIssueLink item : relevantLinks) {
+
+
+
+                //we create an exact copy of the existing link
+
+                //We only change the id of the issue
+                linkBuilder.issueId(newIssue.getId())
+                //We need the id of the source issue, just to be able to synchronize the links
+                //When a link is deleted in the source issue, the same link should be deleted in the target issue(s)
+                linkBuilder.summary(currentIssue.getKey())
+
+
+
+                //we copy the rest
+                linkBuilder.globalId(item.getGlobalId())
+                linkBuilder.title(item.getTitle())
+                linkBuilder.url(item.getUrl())
+                linkBuilder.iconUrl(item.getIconUrl())
+                linkBuilder.iconTitle(item.getIconTitle())
+                linkBuilder.relationship(item.getRelationship())
+                linkBuilder.applicationType(item.getApplicationType())
+                linkBuilder.applicationName(item.getApplicationName())
+
+
+                def newLink = linkBuilder.build()
+
+
+                //check if the issue already has got this link assigned to
 
 
 
 
 
-                            def createValidationResult = remoteIssueLinkService.validateCreate(getCurrentApplicationUser(),newLink)
+                def createValidationResult = remoteIssueLinkService.validateCreate(getCurrentApplicationUser(),newLink)
 
-                            remoteIssueLinkService.create(getCurrentApplicationUser(),createValidationResult)
+                remoteIssueLinkService.create(getCurrentApplicationUser(),createValidationResult)
 
-                        }//end for
+            }//end for
 
-        println "z"
+            println "z"
 
         }
     }
@@ -1637,17 +1637,17 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 
     //begin customizing
 
-            def customFieldNameRelease = ".Release"
-            def customFieldNameSprint = ".Sprint"
-            def customFieldNameSprintAndReleaseNames = ".Sprints"
-            def customFieldNameDeveloper = ".Developer"
-            def customFieldNameAlmSubject = ".Alm_Subject"
-            def nameOfPrefix = "DEV"
-            def issueTypeNameSubTasks = "Sub-task"
-            def issueTypeNameStory = "Story"
-            def issueTypeNameRequirement = "Requirement"
-            def issueTypeNameTestCase = "Test Case"
-            def issueTypeNameBug = "Bug"
+    def customFieldNameRelease = ".Release"
+    def customFieldNameSprint = ".Sprint"
+    def customFieldNameSprintAndReleaseNames = ".Sprints"
+    def customFieldNameDeveloper = ".Developer"
+    def customFieldNameAlmSubject = ".Alm_Subject"
+    def nameOfPrefix = "DEV"
+    def issueTypeNameSubTasks = "Sub-task"
+    def issueTypeNameStory = "Story"
+    def issueTypeNameRequirement = "Requirement"
+    def issueTypeNameTestCase = "Test Case"
+    def issueTypeNameBug = "Bug"
 
 
     //end customizing
@@ -1662,20 +1662,20 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
     //only relevant if we have an update
     if(issue.created != issue.updated){
 
-            //def test = event.getChangeLog().getRelated('ChildChangeItem')
+        //def test = event.getChangeLog().getRelated('ChildChangeItem')
 
-            for (item in listOfFieldNames) {
-
-
-                log.debug("Entering event.getChangeLog().getRelated('ChildChangeItem') and looking for " + item)
-
-                def check = event.getChangeLog().getRelated('ChildChangeItem').find { it.field == item }
+        for (item in listOfFieldNames) {
 
 
-                if(check != null) {
+            log.debug("Entering event.getChangeLog().getRelated('ChildChangeItem') and looking for " + item)
 
-                        searchResult = check
-                        field = searchResult.field
+            def check = event.getChangeLog().getRelated('ChildChangeItem').find { it.field == item }
+
+
+            if(check != null) {
+
+                searchResult = check
+                field = searchResult.field
 
 
 
@@ -1683,206 +1683,206 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 
                 break
 
-                 }
+            }
 
-                log.debug("No update found for field " + item)
+            log.debug("No update found for field " + item)
+        }
+
+
+        //make sure, that all the subtasks assigned to a story allways have the same components assigned to them.
+        //We need this functionality as the relationshipt between story and subtas is not a "relates to" relationship.
+        //Therefore we can not use the plugin (Exocert" functionality to copy the value along the "relates to" relationship.
+        if (searchResult != null && field == "Component") {
+
+
+            Collection<ProjectComponent> myComponents = issue.getComponentObjects()
+
+
+            if (issueType == issueTypeNameStory) {
+
+                // get all SubTasks for the story
+                def subTasks = getIssuesOfNetwork(issue,issueTypeNameSubTasks,"1","",log).getIssues()
+
+                //we need the IssueManager in order to create the issue of the the result of the query
+                IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+
+                subTasks.each {
+
+                    //we create an issue
+                    def myIssue = issueManager.getIssueObject(it.getId())
+
+                    updateComponents(myIssue,myComponents)
+
+                }
+
+
             }
 
 
-                //make sure, that all the subtasks assigned to a story allways have the same components assigned to them.
-                //We need this functionality as the relationshipt between story and subtas is not a "relates to" relationship.
-                //Therefore we can not use the plugin (Exocert" functionality to copy the value along the "relates to" relationship.
-                if (searchResult != null && field == "Component") {
+        }//end of handling of components
 
 
-                    Collection<ProjectComponent> myComponents = issue.getComponentObjects()
 
 
-                    if (issueType == issueTypeNameStory) {
+        //if the field "fix version" or sprint was updated then, we copy the value to the defined customfields
 
-                        // get all SubTasks for the story
-                        def subTasks = getIssuesOfNetwork(issue,issueTypeNameSubTasks,"1","",log).getIssues()
+        if (searchResult != null && field == "Fix Version" || field == "Sprint"){
 
-                        //we need the IssueManager in order to create the issue of the the result of the query
-                        IssueManager issueManager = ComponentAccessor.getIssueManager()
+            log.debug("Entering handling update of field: " + field)
+            long time = System.currentTimeMillis()
 
 
-                        subTasks.each {
 
-                            //we create an issue
-                            def myIssue = issueManager.getIssueObject(it.getId())
+            //copy the value to the customfields .Release and .Alm_Subject and .Sprint
 
-                            updateComponents(myIssue,myComponents)
+            //copy to --> .Release
+            setLabel(issue,getReleaseName(issue),customFieldNameRelease,log)
+
+
+            //copy to --> .Sprint
+            setLabel(issue,getSprintName(issue),customFieldNameSprint,log)
+
+            //copy to --> .Alm_Subject
+            setLabel(issue,getAlmSubject(issue),customFieldNameAlmSubject,log)
+
+
+            //if the release is changed but the sprint remains - which should not really be the case
+            //then we must make sure, that this change is also available for the relevant business requests
+            setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames,log)
+            setReleaseAndSprintNamesInPKE(issue,customFieldNameSprintAndReleaseNames,log)
+
+            log.debug("Leaving handling update of field: " + field)
+            long completedIn = System.currentTimeMillis() - time;
+            log.debug("Handling of an update of field :" + field +"took this time: " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
+
+
+        }
+
+        if (searchResult != null && field == "description"){
+
+            log.debug("Entering handling update of field: " + field)
+            long time = System.currentTimeMillis()
+
+            syncExternalLinks(issue)
+
+            log.debug("Leaving handling update of field: " + field)
+            long completedIn = System.currentTimeMillis() - time;
+            log.debug("Handling of an update of field :" + field +"took : " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
+
+
+        }
+
+        if (searchResult != null && field == "assignee") {
+
+            def issueSummary = issue.getSummary()
+            //we get the first 3 characters of the summary in order the check if it is a DEV task
+            def keyWord = issueSummary.substring(0,3)
+
+
+
+
+            //we only copy the name of the developer if the subtasks begins witn prefix DEV
+            if(issueType == issueTypeNameSubTasks && keyWord == nameOfPrefix){
+
+                def newAssignee = searchResult.newstring
+                def userName
+
+
+                log.debug("NewAssignee=" + newAssignee)
+                log.debug("issueType="+issueType)
+
+
+                // set for this issue of type sub task the customfield .Developer t
+
+                if(newAssignee != null) {
+
+                    userName = getAssigneeUserName(issue)
+
+                }
+
+                if(newAssignee == null){
+                    userName = ""
+                }
+
+
+
+                //set for the parent issue of type story the customfield .Developer
+                //setLabel(issue,newAssignee,customFieldNameDeveloper,log)
+
+                setCustomFieldValueUserPicker(issue,userName,getCustomField(customFieldNameDeveloper))
+
+
+                //now we want to copy the name of the developer to all related requirements and test cases
+
+
+                Set<Issue> issuesInNetwork = new HashSet<Issue>()
+                List myTempList = []
+
+
+                // get my parent. For this look in the network of linked issues, from my point of view 1 level deep
+                // for a sub task the link type to its parent should be left blank
+                issuesInNetwork = getIssuesOfNetwork(issue,issueTypeNameStory,"1","",log).getIssues()
+
+
+                //get all requirements for all user stories
+                for(Issue item : issuesInNetwork){
+                    if(item.getIssueTypeObject().getName()==issueTypeNameStory){
+                        myTempList.addAll(getIssuesOfNetwork(item, "1", "is validated by").getIssues())
+                    }
+
+                    issuesInNetwork.addAll(myTempList)
+
+                    //get all test cases for all requirements
+
+                    myTempList = []
+                    //get the test cases for each requirement
+                    for (Issue item1 : issuesInNetwork){
+                        if(item1.getIssueTypeObject().getName() == issueTypeNameRequirement ){
+
+                            myTempList.addAll(getIssuesOfNetwork(item1, "1", "is tested by").getIssues())
 
                         }
+                    }
 
+                    issuesInNetwork.addAll(myTempList)
+
+
+
+                    //we need the IssueManager in order to create the issue of the the result of the query
+                    IssueManager issueManager = ComponentAccessor.getIssueManager()
+
+
+
+                    for(Issue anIssue :issuesInNetwork){
+
+                        //we create an issue
+                        def myIssue = issueManager.getIssueObject(anIssue.getId())
+
+                        setCustomFieldValueUserPicker(myIssue,userName,getCustomField(customFieldNameDeveloper))
 
                     }
 
-
-                }//end of handling of components
-
-
-
-
-                //if the field "fix version" or sprint was updated then, we copy the value to the defined customfields
-
-                if (searchResult != null && field == "Fix Version" || field == "Sprint"){
-
-                    log.debug("Entering handling update of field: " + field)
-                    long time = System.currentTimeMillis()
-
-
-
-                    //copy the value to the customfields .Release and .Alm_Subject and .Sprint
-
-                    //copy to --> .Release
-                    setLabel(issue,getReleaseName(issue),customFieldNameRelease,log)
-
-
-                    //copy to --> .Sprint
-                    setLabel(issue,getSprintName(issue),customFieldNameSprint,log)
-
-                    //copy to --> .Alm_Subject
-                    setLabel(issue,getAlmSubject(issue),customFieldNameAlmSubject,log)
-
-
-                    //if the release is changed but the sprint remains - which should not really be the case
-                    //then we must make sure, that this change is also available for the relevant business requests
-                    setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames,log)
-                    setReleaseAndSprintNamesInPKE(issue,customFieldNameSprintAndReleaseNames,log)
-
-                    log.debug("Leaving handling update of field: " + field)
-                    long completedIn = System.currentTimeMillis() - time;
-                    log.debug("Handling of an update of field :" + field +"took this time: " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
-
-
                 }
 
-                if (searchResult != null && field == "description"){
-
-                    log.debug("Entering handling update of field: " + field)
-                    long time = System.currentTimeMillis()
-
-                    syncExternalLinks(issue)
-
-                    log.debug("Leaving handling update of field: " + field)
-                    long completedIn = System.currentTimeMillis() - time;
-                    log.debug("Handling of an update of field :" + field +"took : " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
-
-
-                }
-
-                if (searchResult != null && field == "assignee") {
-
-                    def issueSummary = issue.getSummary()
-                    //we get the first 3 characters of the summary in order the check if it is a DEV task
-                    def keyWord = issueSummary.substring(0,3)
-
-
-
-
-                    //we only copy the name of the developer if the subtasks begins witn prefix DEV
-                    if(issueType == issueTypeNameSubTasks && keyWord == nameOfPrefix){
-
-                        def newAssignee = searchResult.newstring
-                        def userName
-
-
-                        log.debug("NewAssignee=" + newAssignee)
-                        log.debug("issueType="+issueType)
-
-
-                        // set for this issue of type sub task the customfield .Developer t
-
-                        if(newAssignee != null) {
-
-                            userName = getAssigneeUserName(issue)
-
-                        }
-
-                        if(newAssignee == null){
-                            userName = ""
-                        }
-
-
-
-                        //set for the parent issue of type story the customfield .Developer
-                        //setLabelCustomField(issue,newAssignee,customFieldNameDeveloper,log)
-
-                        setCustomFieldValueUserPicker(issue,userName,getCustomField(customFieldNameDeveloper))
-
-
-                        //now we want to copy the name of the developer to all related requirements and test cases
-
-
-                        Set<Issue> issuesInNetwork = new HashSet<Issue>()
-                        List myTempList = []
-
-
-                        // get my parent. For this look in the network of linked issues, from my point of view 1 level deep
-                        // for a sub task the link type to its parent should be left blank
-                        issuesInNetwork = getIssuesOfNetwork(issue,issueTypeNameStory,"1","",log).getIssues()
-
-
-                        //get all requirements for all user stories
-                        for(Issue item : issuesInNetwork){
-                            if(item.getIssueTypeObject().getName()==issueTypeNameStory){
-                                myTempList.addAll(getIssuesOfNetwork(item, "1", "is validated by").getIssues())
-                            }
-
-                        issuesInNetwork.addAll(myTempList)
-
-                        //get all test cases for all requirements
-
-                            myTempList = []
-                            //get the test cases for each requirement
-                            for (Issue item1 : issuesInNetwork){
-                                if(item1.getIssueTypeObject().getName() == issueTypeNameRequirement ){
-
-                                    myTempList.addAll(getIssuesOfNetwork(item1, "1", "is tested by").getIssues())
-
-                                }
-                            }
-
-                            issuesInNetwork.addAll(myTempList)
-
-
-
-                            //we need the IssueManager in order to create the issue of the the result of the query
-                            IssueManager issueManager = ComponentAccessor.getIssueManager()
-
-
-
-                            for(Issue anIssue :issuesInNetwork){
-
-                                //we create an issue
-                                def myIssue = issueManager.getIssueObject(anIssue.getId())
-
-                                setCustomFieldValueUserPicker(myIssue,userName,getCustomField(customFieldNameDeveloper))
-
-                            }
-
-                    }
-
-                    println ""
-                }
-
-
-                }
-
-
-
-            //if the field "fix version" or sprint was updated then, we copy the value to the defined customfields
-
-            if (searchResult != null && field == ".IT-App_Module"){
-
-
-                //copy to --> .Alm_Subject
-                setLabel(issue,getAlmSubject(issue),customFieldNameAlmSubject,log)
-
-
+                println ""
             }
+
+
+        }
+
+
+
+        //if the field "fix version" or sprint was updated then, we copy the value to the defined customfields
+
+        if (searchResult != null && field == ".IT-App_Module"){
+
+
+            //copy to --> .Alm_Subject
+            setLabel(issue,getAlmSubject(issue),customFieldNameAlmSubject,log)
+
+
+        }
 
 
 
@@ -1895,7 +1895,7 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
     else {
 
 
-    //make sure we copy the .developer if this exists
+        //make sure we copy the .developer if this exists
 
         Set<Issue> issuesInNetwork = new HashSet<Issue>()
         List myTempList = []
@@ -1906,34 +1906,34 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 
             //get the name of the developer
 
-                    //get the user story
-                    myTempList.addAll(getIssuesOfNetwork(issue, "1", "validates").getIssues())
+            //get the user story
+            myTempList.addAll(getIssuesOfNetwork(issue, "1", "validates").getIssues())
 
-                    issuesInNetwork.addAll(myTempList)
+            issuesInNetwork.addAll(myTempList)
 
-                    //get the sub tasks
-                    for(Issue item : issuesInNetwork){
+            //get the sub tasks
+            for(Issue item : issuesInNetwork){
 
-                        if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
+                if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
 
-                            myTempList = []
+                    myTempList = []
 
-                            myTempList.addAll(getIssuesOfNetwork(item,issueTypeNameSubTasks,"1","",log).getIssues())
+                    myTempList.addAll(getIssuesOfNetwork(item,issueTypeNameSubTasks,"1","",log).getIssues())
 
-                            //get the subtask beginning with DEV
-                            for(Issue item2 : myTempList){
+                    //get the subtask beginning with DEV
+                    for(Issue item2 : myTempList){
 
-                                if (item2.getSummary().substring(0,3)== nameOfPrefix) {
+                        if (item2.getSummary().substring(0,3)== nameOfPrefix) {
 
-                                    nameDeveloper = item2.getAssignee().getName()
+                            nameDeveloper = item2.getAssignee().getName()
 
-                                }
-                            }
                         }
-
-
-
                     }
+                }
+
+
+
+            }
 
             setCustomFieldValueUserPicker(issue,nameDeveloper,getCustomField(customFieldNameDeveloper))
 
@@ -1999,62 +1999,62 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
             //get the name of the developer and add this to the Bug
 
 
-                    Set<Issue> myListOfStories = new HashSet<Issue>()
-                    Set<Issue> myListOfRequirements = new HashSet<Issue>()
-                    Set<Issue> myListOfTestCases = new HashSet<Issue>()
+            Set<Issue> myListOfStories = new HashSet<Issue>()
+            Set<Issue> myListOfRequirements = new HashSet<Issue>()
+            Set<Issue> myListOfTestCases = new HashSet<Issue>()
 
 
 
-                    //get the test cases
-                    myListOfTestCases.addAll(getIssuesOfNetwork(issue, "1", "blocks").getIssues())
+            //get the test cases
+            myListOfTestCases.addAll(getIssuesOfNetwork(issue, "1", "blocks").getIssues())
 
-                    //get the requirements
-                    for(Issue item : myListOfTestCases) {
-                        if(item.getIssueTypeObject().getName() == issueTypeNameTestCase){
+            //get the requirements
+            for(Issue item : myListOfTestCases) {
+                if(item.getIssueTypeObject().getName() == issueTypeNameTestCase){
 
-                            myListOfRequirements.addAll(getIssuesOfNetwork(item, "1", "tests").getIssues())
+                    myListOfRequirements.addAll(getIssuesOfNetwork(item, "1", "tests").getIssues())
+                }
+
+            }
+
+            //get the stories for each requirement
+            for(Issue item : myListOfRequirements){
+
+                if(item.getIssueTypeObject().getName()== issueTypeNameRequirement){
+
+                    myListOfStories = []
+                    myListOfStories.addAll(getIssuesOfNetwork(item, "1", "validates").getIssues())
+
+                }
+
+            }
+
+
+            //get the sub tasks for the user stories and the name of the developer assigned to subtask with prefix DEV
+            for(Issue item : myListOfStories){
+
+                if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
+
+                    myTempList = []
+
+                    myTempList.addAll(getIssuesOfNetwork(item,issueTypeNameSubTasks,"1","",log).getIssues())
+
+                    //get the subtask beginning with DEV
+                    for(Issue item2 : myTempList){
+
+                        if (item2.getSummary().substring(0,3)== nameOfPrefix) {
+
+                            nameDeveloper = item2.getAssignee().getName()
+
                         }
-
                     }
-
-                    //get the stories for each requirement
-                    for(Issue item : myListOfRequirements){
-
-                        if(item.getIssueTypeObject().getName()== issueTypeNameRequirement){
-
-                            myListOfStories = []
-                            myListOfStories.addAll(getIssuesOfNetwork(item, "1", "validates").getIssues())
-
-                        }
-
-                    }
-
-
-                    //get the sub tasks for the user stories and the name of the developer assigned to subtask with prefix DEV
-                    for(Issue item : myListOfStories){
-
-                        if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
-
-                            myTempList = []
-
-                            myTempList.addAll(getIssuesOfNetwork(item,issueTypeNameSubTasks,"1","",log).getIssues())
-
-                            //get the subtask beginning with DEV
-                            for(Issue item2 : myTempList){
-
-                                if (item2.getSummary().substring(0,3)== nameOfPrefix) {
-
-                                    nameDeveloper = item2.getAssignee().getName()
-
-                                }
-                            }
-                        }
+                }
 
 
 
-                    }
+            }
 
-                    setCustomFieldValueUserPicker(issue,nameDeveloper,getCustomField(customFieldNameDeveloper))
+            setCustomFieldValueUserPicker(issue,nameDeveloper,getCustomField(customFieldNameDeveloper))
 
 
             //Idea: add this issue to the corresponding sprint
@@ -2075,8 +2075,8 @@ def handleIssueTypeOrder(Issue issue){
 
     //** customizing **
 
-    def issueTypeOrder = "OrderIssueEventHandler"
-    def customFieldOrder = ".OrderIssueEventHandler"
+    def issueTypeOrder = "Order"
+    def customFieldOrder = ".Order"
 
     def orderId = "09071972"//issue.getSummary()
     def issueType = issue.getIssueTypeObject().getName()
