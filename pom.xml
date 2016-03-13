@@ -53,6 +53,12 @@
             <version>${greenhopper.version}</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>${mysql.version}</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <properties>
@@ -61,5 +67,6 @@
         <amps.version>5.0.13</amps.version>
         <groovy.version>2.4.3</groovy.version>
         <greenhopper.version>6.7.11</greenhopper.version>
+        <mysql.version>5.1.38</mysql.version>
     </properties>
 </project>

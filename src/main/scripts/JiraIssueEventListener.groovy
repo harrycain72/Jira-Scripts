@@ -300,7 +300,7 @@ def setLabel(Issue issue, String newValue, String fieldName, Category log){
 
 
     //debugging
-    log.debug("Entering setLabel for issue: " + issue.getKey() +" and field " + fieldName)
+    log.debug("Entering setLabelCustomField for issue: " + issue.getKey() +" and field " + fieldName)
     long time= System.currentTimeMillis()
 
     if (newValue == ""){ newValue ="-"}
@@ -327,7 +327,7 @@ def setLabel(Issue issue, String newValue, String fieldName, Category log){
 
 
     //debugging
-    log.debug("Leaving setLabel for issue: " + issue.getKey() +" and field " + fieldName)
+    log.debug("Leaving setLabelCustomField for issue: " + issue.getKey() +" and field " + fieldName)
     long completedIn = System.currentTimeMillis() - time;
     log.debug("Setting label for issue :" + issue.getKey() +" and for field " + fieldName +" took: " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
 
@@ -1808,7 +1808,7 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 
 
                         //set for the parent issue of type story the customfield .Developer
-                        //setLabel(issue,newAssignee,customFieldNameDeveloper,log)
+                        //setLabelCustomField(issue,newAssignee,customFieldNameDeveloper,log)
 
                         setCustomFieldValueUserPicker(issue,userName,getCustomField(customFieldNameDeveloper))
 
@@ -2075,8 +2075,8 @@ def handleIssueTypeOrder(Issue issue){
 
     //** customizing **
 
-    def issueTypeOrder = "Order"
-    def customFieldOrder = ".Order"
+    def issueTypeOrder = "OrderIssueEventHandler"
+    def customFieldOrder = ".OrderIssueEventHandler"
 
     def orderId = "09071972"//issue.getSummary()
     def issueType = issue.getIssueTypeObject().getName()
