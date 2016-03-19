@@ -1,21 +1,23 @@
 package util
 
 import com.atlassian.greenhopper.service.sprint.Sprint
-import com.atlassian.gzipfilter.org.apache.commons.lang.time.DurationFormatUtils
 import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
 import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
 import com.atlassian.jira.event.type.EventDispatchOption
+import com.atlassian.jira.issue.DocumentIssueImpl
 import com.atlassian.jira.issue.Issue
 import com.atlassian.jira.issue.IssueManager
 import com.atlassian.jira.issue.ModifiedValue
 import com.atlassian.jira.issue.MutableIssue
 import com.atlassian.jira.issue.fields.CustomField
 import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
-import com.atlassian.jira.issue.history.ChangeItemBean
 import com.atlassian.jira.issue.issuetype.IssueType
 import com.atlassian.jira.issue.label.LabelManager
 import com.atlassian.jira.issue.link.DefaultRemoteIssueLinkManager
+import com.atlassian.jira.issue.link.IssueLink
+import com.atlassian.jira.issue.link.IssueLinkType
+import com.atlassian.jira.issue.link.IssueLinkTypeManager
 import com.atlassian.jira.issue.link.RemoteIssueLink
 import com.atlassian.jira.issue.link.RemoteIssueLinkBuilder
 import com.atlassian.jira.issue.search.SearchProvider
@@ -26,12 +28,11 @@ import com.atlassian.jira.user.util.UserUtil
 import com.atlassian.jira.util.JiraUtils
 import com.atlassian.jira.web.bean.PagerFilter
 import com.atlassian.crowd.embedded.api.User
-import com.atlassian.jira.workflow.JiraWorkflow
 import com.atlassian.jira.workflow.WorkflowTransitionUtil
 import com.atlassian.jira.workflow.WorkflowTransitionUtilImpl
 import com.opensymphony.workflow.WorkflowContext
-import org.apache.log4j.Category
 import com.atlassian.jira.project.Project
+import org.apache.log4j.Category
 
 import java.sql.Connection
 import java.sql.Driver
@@ -369,10 +370,6 @@ class Helper {
 
 
 
-
-
-
-
 //this method is responsible for the creation of subTask
     def addSubTask(Issue issue, String subTaskName, String subTaskSummary, String subTaskDescription) {
 
@@ -388,7 +385,6 @@ class Helper {
 
 
         //Instanzierung der factories
-        def isf
         isf = ComponentAccessor.getIssueFactory()
 
         //IssueFactory: we create her a generic issue
@@ -433,7 +429,7 @@ class Helper {
             toBeCreatedSubTaskSummary = subTaskName + ": " + subTaskSummary
         }
 
-        def checkResult
+
         checkResult = checkIfSubTaskSummaryExists(issue,toBeCreatedSubTaskSummary)
 
 
@@ -441,16 +437,13 @@ class Helper {
         if (!checkResult) {
 
             //the issue gets created with the IssueMngr
-            def ism
             ism = ComponentAccessor.getIssueManager()
 
             //Security
             //jac = ComponentAccessor.getJiraAuthenticationContext()
 
-            def currentUser
             currentUser = getCurrentUser()
 
-            def subTask
             subTask = ism.createIssueObject(currentUser, issueObject)
 
 
@@ -458,16 +451,13 @@ class Helper {
 
             //the created subtask is linked to the issue.This is done through the SubTaskMngr
 
-            def stm
             stm = ComponentAccessor.getSubTaskManager()
             stm.createSubTaskIssueLink(issue, subTask, currentUser)
 
 
             // disable the watcher using the WatcherManager
-            def wtm
             wtm = ComponentAccessor.getWatcherManager()
-            wtm.stopWatching(getCurrentApplicationUser(), subTask)
-
+            wtm.stopWatching(currentUser, subTask)
 
         }
 
@@ -475,52 +465,69 @@ class Helper {
 
 
 
-//Method retrieves the Fixed Version name of the current issue
-    def getReleaseName(Issue issue){
+
+
+
+    //Method retrieves the Fixed Version name of the current issue
+    //If no release is assigned, then "-" will be set.
+    def getFirstReleaseName(Issue issue){
 
         // MutableIssue myMutableIssue = (MutableIssue)issue;// Flag EV is necessary to be able to be triggered by an event / listener
 
         ArrayList myListReleases = (ArrayList)issue.getFixVersions()
 
-        def release = "-"
+        def releaseName
 
-        if(myListReleases!=null){
-
-
+        if(myListReleases.size() != 0){
+            
 
             //we only consider getting the first item, even though more fix versions can be assigned to an issue
-            release = (String)myListReleases[0]
+            releaseName = (String)myListReleases[0]
 
+        }
+        
+        else {
+            releaseName = "-"
         }
 
 
-        return release
+        return releaseName
     }
 
-// method retrieves the assigned sprint of an issue
+    // method retrieves the assigned sprint of an issue
+    //If no sprint is assigned, then "-" will be set.
     def getSprintName(Issue issue){
 
         ArrayList<Sprint> listOfSprints = (ArrayList<Sprint>) ComponentAccessor.getCustomFieldManager().getCustomFieldObjectByName("Sprint").getValue(issue);
 
-        def SprintName ="-"
+        def sprintName
 
-        if(listOfSprints!=null){
+        if(listOfSprints != null){
 
             //we only consider getting the first sprint in the list, event though more sprints can be assigned to an issue
-            SprintName = (String)listOfSprints[0].getName()
+            sprintName = (String)listOfSprints[0].getName()
         }
 
         else {
-            //do something else
+            
+            sprintName = "-"
 
         }
 
-        return SprintName
+        return sprintName
     }
 
     def setCustomFieldValue(Issue issue, String myValueToSave, CustomField myCustomField){
 
-        def MutableIssue myMutableIssue = (MutableIssue)issue
+
+        def myIssue = issue
+
+        if(issue instanceof DocumentIssueImpl){
+            myIssue = getIssueByKey(issue.getKey())
+        }
+
+        def MutableIssue myMutableIssue = (MutableIssue)myIssue
+
 
         myMutableIssue.setCustomFieldValue(myCustomField,myValueToSave)
 
@@ -540,9 +547,13 @@ class Helper {
 
     def setCustomFieldValueUserPicker(Issue issue, String userName, CustomField myCustomField){
 
+        def myIssue = issue
 
+        if(issue instanceof DocumentIssueImpl){
+            myIssue = getIssueByKey(issue.getKey())
+        }
 
-        def MutableIssue myMutableIssue = (MutableIssue)issue
+        def MutableIssue myMutableIssue = (MutableIssue)myIssue
 
         UserUtil userUtil = ComponentAccessor.getUserUtil()
         ApplicationUser applicationUser = userUtil.getUserByName(userName)
@@ -559,18 +570,36 @@ class Helper {
 
         final ModifiedValue myModifiedValue = modifiedFields.get(myCustomField.getId())
 
+
         myCustomField.updateValue(myFieldLayoutItem,myMutableIssue,myModifiedValue,myDefaultIssueChangeHolder)
 
     }
 
-    def setLabelCustomField(Issue issue, String newValue, String fieldName){
+
+    // sets n labels for a specific issue for a customfield
+
+    def setLabelsForCustomField(Issue issue, Set labels, String customFieldName){
+
+        def customFieldManager
+
+        LabelManager labelManager = ComponentAccessor.getComponent(LabelManager.class)
+
+        customFieldManager = ComponentAccessor.getCustomFieldManager()
+
+        CustomField customField = customFieldManager.getCustomFieldObjectByName(customFieldName)
+
+        labelManager.setLabels(getCurrentApplicationUser().getDirectoryUser(),issue.getId(),customField.getIdAsLong(),labels,false,true)
+
+    }
 
 
-
-
-        long time= System.currentTimeMillis()
-
-        if (newValue == ""){ newValue ="-"}
+    //sets the label for a customfield
+    def setLabelCustomField(Issue issue, String newValue, String customFieldName){
+        
+        //a label can not be set with blank, therefore we replace a blank with a "-"
+        if (newValue == ""){ 
+            newValue ="-"
+        }
 
         //we should always have a value for a label!
         if(newValue !=""){
@@ -581,9 +610,12 @@ class Helper {
 
             customFieldManager = ComponentAccessor.getCustomFieldManager()
 
-            CustomField customField = customFieldManager.getCustomFieldObjectByName(fieldName)
+            CustomField customField = customFieldManager.getCustomFieldObjectByName(customFieldName)
 
-            Set<String> set = convertToSetForLabels((String) newValue)
+            
+            //convert blanks in String to "_"
+            
+            Set<String> set = replaceBlankInStringWithUnderscore((String) newValue)
 
 
 
@@ -593,6 +625,8 @@ class Helper {
         }
 
     }
+
+
 
 // sets n labels in the standard JIRA labels field for a specific issue
     def setLabelJiraField(Issue issue, Set labels){
@@ -646,8 +680,10 @@ class Helper {
 
     }
 
-
-    def convertToSetForLabels(String newValue){
+    //this methods replaces blanks in a string with "_"
+    // Example: "this is my string" --> "this_is_my_string"
+    // We need this if we want to insert a String to a label in JIRA
+    def replaceBlankInStringWithUnderscore(String newValue){
 
         Set<String> set = new HashSet<String>();
 
@@ -735,7 +771,7 @@ class Helper {
         def sprint = getSprintName(issue)
 
         //release name is "-" if not assigned to issue
-        def release = getReleaseName(issue)
+        def release = getFirstReleaseName(issue)
 
         def sprintName
 
@@ -748,13 +784,19 @@ class Helper {
         //only sprint assigned
         if(sprint != "-" && release == "-") {
 
-            sprintName = "_"+sprint
+            sprintName = "---_"+sprint
         }
 
         //only release assigned
         if(sprint == "-" && release != "-") {
 
-            sprintName = "-"
+            sprintName = release + "_"+"---"
+        }
+
+        //neither release and sprint is assigned
+        if(sprint == "-" && release == "-") {
+
+            sprintName = "---_"+"---"
         }
 
         // get rid of the blanks
@@ -782,6 +824,9 @@ class Helper {
         return sprintName
     }
 
+
+
+
 //removes first and last character from a String
     def removeFirstAndLastCharacterFromString(String myString){
 
@@ -794,13 +839,18 @@ class Helper {
         return myString
     }
 
-    def getAlmSubject(Issue issue){
+    //The Subject is necessary to tell Tasktop Sync where (in the ALM testplan tree) to store the test cases
+    //Example: EAP_R16.2JUL_SPRINT_1_TEAM_A
 
-        def sprint = getSprintName(issue)
+    def getAlmSubject(Issue issue, Issue story, Helper hp){
 
-        def release = getReleaseName(issue)
+        def storyIssue = story
 
-        def application_module = getCustomFieldValue(issue,".IT-App_Module")
+        def sprintName = getSprintName(storyIssue)
+
+        def releaseName = getFirstReleaseName(storyIssue)
+
+        def application_module = getCustomFieldValue(storyIssue,".IT-App_Module")
 
 
 
@@ -814,64 +864,60 @@ class Helper {
         }
 
 
-
-
-
-
         def almSubject = ""
 
-        //release and sprint ar assigned to the issue
-        if(sprint != "-" && release != "-"){
+        //release and sprint are assigned to the issue
+        if(sprintName != "-" && releaseName != "-"){
 
             if(application_module != null ){
-                almSubject = release + "_" + application_module + "_" + sprint
+                almSubject =  application_module + "_" + releaseName + "_" + sprintName
             }
 
             else {
 
-                almSubject = release + "_---_" + sprint
+                almSubject = "---_" + releaseName + "_" + sprintName
             }
         }
 
 
         //only sprint is assigned to the issue
-        if(sprint != "-" && release == "-") {
+        if(sprintName != "-" && releaseName == "-") {
 
             if(application_module != null) {
-                almSubject = "---_" + application_module + "_" + sprint
+                almSubject = application_module + "_---_" +  sprintName
             }
             else {
-                almSubject = "---_---_"+sprint
+                almSubject = "---_---_"+sprintName
             }
 
         }
         //only release is assigned to the issue
-        if(sprint == "-" && release != "-") {
+        if(sprintName == "-" && releaseName != "-") {
 
             if(application_module != null) {
-                almSubject = release +"_"+application_module+"_---"
+                almSubject = application_module + "_" + releaseName +"_---"
             }
             else {
-                almSubject = release + "_---_---"
+                almSubject = "---_" + releaseName + "_---"
             }
 
         }
         //neither release or sprint is assigned to the issue
-        if(sprint == "-" && release == "-") {
+        if(sprintName == "-" && releaseName == "-") {
 
             if(application_module != null) {
-                almSubject = "---_"+application_module+"_---"
+                almSubject = application_module+"_---_---"
             }
             else {
-                almSubject = release + "---_---_---"
+                almSubject = releaseName + "---_---_---"
             }
 
         }
 
 
 
-
-        // get rid of the blanks
+        // If releaseName or sprintName should have any blanks we have to get rid of those
+        // remember, we need to do this, as no blanks are allowed for jira labels.
 
         StringTokenizer st = new StringTokenizer(almSubject," ")
 
@@ -896,6 +942,7 @@ class Helper {
         return almSubject
     }
 
+
     // returns one or more issues based on the defined query.
     def getIssuesByQuery(String myQuery){
 
@@ -914,7 +961,7 @@ class Helper {
     }
 
 
-    def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
+    def getIssuesOfNetworkByLinkType(Issue issue, String traversalDepth, String linkType){
 
         def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
         def searchProvider = ComponentAccessor.getComponent(SearchProvider)
@@ -969,7 +1016,7 @@ class Helper {
 
         }
 
-        else if(linkType=="validats"){
+        else if(linkType=="validates"){
 
             query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"validates\")  ORDER BY issuetype DESC")
 
@@ -991,7 +1038,7 @@ class Helper {
 
 
 
-    def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,String linkType, Category log){
+    def getIssuesOfNetworkByIssueTypeAndLinkType(Issue issue, String issueType, String traversalDepth, String linkType){
 
         def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
         def searchProvider = ComponentAccessor.getComponent(SearchProvider)
@@ -999,9 +1046,6 @@ class Helper {
         def user = getCurrentApplicationUser()
         def issueId = issue.getKey()
         def query
-
-        log.debug("Entering getIssuesOfNetwork for issue  " + issue.getKey() +" looking for issuetype " + issueType + " and linktype "+ linkType)
-        long time = System.currentTimeMillis()
 
 // query for sub tasks without linktype
 
@@ -1011,18 +1055,12 @@ class Helper {
 
         }
 
-// query with consideration of linkType
+// query with consideration of linkType and issuetype
         else {
             query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"" + linkType + "\") AND issuetype =" + issueType + "  ORDER BY issuetype DESC")
         }
 
         def issues = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter())
-
-
-        //debugging
-        log.debug("Leaving getIssuesOfNetwork for issue  " + issue.getKey() +" looking for issuetype " + issueType + " and linktype "+ linkType)
-        long completedIn = System.currentTimeMillis() - time
-        log.debug("getIssuesOfNetwork for issue " + issue.getKey() + "took "  + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
 
 
         return issues
@@ -1031,7 +1069,7 @@ class Helper {
     }
 
 
-    def setReleaseAndSprintNamesInPKE(Issue issue,String customFieldName,log){
+    def setReleaseAndSprintNamesInPKE(Issue issue,String customFieldName){
 
         //start customizing
 
@@ -1046,10 +1084,10 @@ class Helper {
         IssueManager issueManager = ComponentAccessor.getIssueManager()
 
         //get all stories linked by relates to
-        def stories = getIssuesOfNetwork(issue,issueTypeStory,"3",linkTypeRelatesTo,log).getIssues()
+        def stories = getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypeStory,"3",linkTypeRelatesTo).getIssues()
 
         //get the pke. We should only have one PKE linked to the stories
-        def pkes = getIssuesOfNetwork(issue,issueTypePKE,"3",linkTypeRelatesTo,log).getIssues()
+        def pkes = getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypePKE,"3",linkTypeRelatesTo).getIssues()
 
         //get the sprint name for each story. The names must be updated as labels in the pke
 
@@ -1076,14 +1114,10 @@ class Helper {
             //we create an issue
             def myPKE = issueManager.getIssueObject(pkes.get(0).getId())
 
-            setLabels(myPKE, sprintNamesSet, customFieldName)
+            setLabelsForCustomField(myPKE, sprintNamesSet, customFieldName)
         }
 
 
-        // not nice
-        println ""
-
-        // end of new stuff
     }
 
 
@@ -1103,10 +1137,10 @@ class Helper {
         IssueManager issueManager = ComponentAccessor.getIssueManager()
 
         //get all stories linked by relates to
-        def stories = getIssuesOfNetwork(issue,issueTypeStory,"3",linkTypeRelatesTo,log).getIssues()
+        def stories = getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypeStory,"3",linkTypeRelatesTo).getIssues()
 
         //get the business request. We should only have one business request linked to the stories
-        def businessRequests= getIssuesOfNetwork(issue,issueTypeBusinessRequest,"3",linkTypeRelatesTo,log).getIssues()
+        def businessRequests= getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypeBusinessRequest,"3",linkTypeRelatesTo).getIssues()
 
         //get the sprint name for each story. The names must be updated as labels in the business request
 
@@ -1133,12 +1167,16 @@ class Helper {
             //we create an issue
             def myBusinessRequest = issueManager.getIssueObject(businessRequests.get(0).getId())
 
-            setLabels(myBusinessRequest, sprintNamesSet, customFieldName)
+            setLabelsForCustomField(myBusinessRequest, sprintNamesSet, customFieldName)
         }
 
 
 
     }
+
+
+
+
 
     def updateComponents(Issue issue, Collection<ProjectComponent> components){
 
@@ -1201,7 +1239,7 @@ class Helper {
         if(issue.getIssueTypeObject().getName()== issueTypeBusinessRequest){
 
             //gets all issues of type story and excludes the BusinessRequest
-            myTempList = getIssuesOfNetwork(issue,"3","relates to").getIssues()
+            myTempList = getIssuesOfNetworkByLinkType(issue,"3","relates to").getIssues()
 
 
             for (Issue item : myTempList){
@@ -1217,7 +1255,7 @@ class Helper {
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeStory ){
 
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "is validated by").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "is validated by").getIssues())
 
                 }
             }
@@ -1229,7 +1267,7 @@ class Helper {
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeRequirement ){
 
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "is tested by").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "is tested by").getIssues())
 
                 }
             }
@@ -1242,7 +1280,7 @@ class Helper {
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeTestCase ){
 
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "is blocked by").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "is blocked by").getIssues())
 
                 }
             }
@@ -1255,7 +1293,7 @@ class Helper {
 
             //gets all issues of type story and excludes the PKE
             myTempList =[]
-            for (Issue item : getIssuesOfNetwork(issue,"3","relates to").getIssues()){
+            for (Issue item : getIssuesOfNetworkByLinkType(issue,"3","relates to").getIssues()){
                 if(item.getIssueTypeObject().getName() != issueTypePKE ){
                     myTempList.add(item)
                 }
@@ -1270,7 +1308,7 @@ class Helper {
 
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeStory ){
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "is validated by").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "is validated by").getIssues())
                 }
             }
 
@@ -1282,7 +1320,7 @@ class Helper {
             myTempList = []
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeRequirement ){
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "is tested by").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "is tested by").getIssues())
                 }
             }
 
@@ -1293,7 +1331,7 @@ class Helper {
             myTempList = []
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeTestCase ){
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "is blocked by").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "is blocked by").getIssues())
                 }
             }
 
@@ -1308,7 +1346,7 @@ class Helper {
 
             //gets all issues of type PKE or Business Request
             myTempList = []
-            for (Issue item : getIssuesOfNetwork(issue,"3","relates to").getIssues()){
+            for (Issue item : getIssuesOfNetworkByLinkType(issue,"3","relates to").getIssues()){
                 if(item.getIssueTypeObject().getName() != issueTypeStory ){
                     myTempList.add(item)
                 }
@@ -1318,7 +1356,7 @@ class Helper {
 
 
             //get the requirements for the story
-            myTempList = getIssuesOfNetwork(issue, "1", "is validated by").getIssues()
+            myTempList = getIssuesOfNetworkByLinkType(issue, "1", "is validated by").getIssues()
             for (Issue item : myTempList){
                 issuesInNetwork.add(item)
             }
@@ -1329,7 +1367,7 @@ class Helper {
             myTempList = []
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeRequirement ){
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "is tested by").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "is tested by").getIssues())
                 }
             }
 
@@ -1340,7 +1378,7 @@ class Helper {
             myTempList = []
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeTestCase ){
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "is blocked by").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "is blocked by").getIssues())
                 }
             }
 
@@ -1351,7 +1389,7 @@ class Helper {
         if(issue.getIssueTypeObject().getName()== issueTypeRequirement){
 
             //get the test cases
-            myTempList = getIssuesOfNetwork(issue, "1", "is tested by").getIssues()
+            myTempList = getIssuesOfNetworkByLinkType(issue, "1", "is tested by").getIssues()
             for(Issue item : myTempList){
                 issuesInNetwork.add(item)
             }
@@ -1361,14 +1399,14 @@ class Helper {
             myTempList = []
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeTestCase ){
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "is blocked by").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "is blocked by").getIssues())
                 }
             }
 
             issuesInNetwork.addAll(myTempList)
 
             // get the stories
-            myTempList = getIssuesOfNetwork(issue, "1", "validates").getIssues()
+            myTempList = getIssuesOfNetworkByLinkType(issue, "1", "validates").getIssues()
             for(Issue item : myTempList){
                 issuesInNetwork.add(item)
             }
@@ -1378,7 +1416,7 @@ class Helper {
             myTempList = []
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeStory ){
-                    myTempList.addAll(getIssuesOfNetwork(item, "2", "is related").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "2", "is related").getIssues())
                 }
             }
 
@@ -1389,14 +1427,14 @@ class Helper {
         if(issue.getIssueTypeObject().getName()== issueTypeTestCase){
 
             //get the bugs
-            myTempList = getIssuesOfNetwork(issue, "1", "is blocked").getIssues()
+            myTempList = getIssuesOfNetworkByLinkType(issue, "1", "is blocked").getIssues()
             for (Issue item : myTempList){
                 issuesInNetwork.add(item)
             }
 
 
             // get the requirements
-            myTempList = getIssuesOfNetwork(issue, "1", "tests").getIssues()
+            myTempList = getIssuesOfNetworkByLinkType(issue, "1", "tests").getIssues()
             for(Issue item : myTempList){
                 issuesInNetwork.add(item)
             }
@@ -1406,7 +1444,7 @@ class Helper {
             myTempList = []
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeRequirement ){
-                    myTempList.addAll(getIssuesOfNetwork(item, "1", "validates").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "1", "validates").getIssues())
                 }
             }
 
@@ -1417,7 +1455,7 @@ class Helper {
             myTempList = []
             for (Issue item : issuesInNetwork){
                 if(item.getIssueTypeObject().getName() == issueTypeStory ){
-                    myTempList.addAll(getIssuesOfNetwork(item, "2", "is related").getIssues())
+                    myTempList.addAll(getIssuesOfNetworkByLinkType(item, "2", "is related").getIssues())
                 }
             }
 
@@ -1428,7 +1466,7 @@ class Helper {
 
         if(issue.getIssueTypeObject().getName()== issueTypeEpic){
 
-            myTempList = getIssuesOfNetwork(issue,"2","is_Epic_of").getIssues()
+            myTempList = getIssuesOfNetworkByLinkType(issue,"2","is_Epic_of").getIssues()
             for (Issue item : myTempList){
                 issuesInNetwork.add(item)
             }
@@ -1954,7 +1992,7 @@ class Helper {
 
 
 
-    def  setWorkflowTransition(Issue issue,User currentUser){
+    def  setWorkflowTransition(Issue issue, Integer transitionID){
 
         def mutableIssue = (MutableIssue)issue
         def status
@@ -1966,7 +2004,7 @@ class Helper {
 
         //Transitions toDo(11) inProgress(21) Done(31)
 
-        workflowTransitionUtil.setAction(21)
+        workflowTransitionUtil.setAction(transitionID)
         workflowTransitionUtil.validate()
         workflowTransitionUtil.progress()
 
@@ -1975,6 +2013,142 @@ class Helper {
     }
 
 
+    def getAllRequirementTestCasesBugForStory(Issue storyIssue){
+
+        Set<Issue> issuesInNetwork = new HashSet<Issue>()
+
+
+        Set<Issue> myListOfRequirements = new HashSet<Issue>()
+
+        Set<Issue> myListOfTestCases = new HashSet<Issue>()
+
+        Set<Issue> myListOfBugs = new HashSet<Issue>()
+
+
+        //get the requirements which are tested by the the test case
+        myListOfRequirements.addAll(getIssuesOfNetworkByLinkType(storyIssue,"1", "is validated by").getIssues())
+        issuesInNetwork.addAll(myListOfRequirements)
+
+
+        // get all test cases for all requirements
+        for(Issue requirement : myListOfRequirements){
+
+            myListOfTestCases.addAll(getIssuesOfNetworkByLinkType(requirement,"1", "is tested by").getIssues())
+            issuesInNetwork.addAll(myListOfTestCases)
+        }
+
+        // get all bugs for all test cases
+        for(Issue testcase : myListOfTestCases){
+
+            myListOfBugs.addAll(getIssuesOfNetworkByLinkType(testcase,"1", "is blocked by").getIssues())
+            issuesInNetwork.addAll(myListOfBugs)
+        }
+
+        return issuesInNetwork
+
+
+    }
+
+    def castToIssue(Issue issue){
+        def castedIssue = issue
+
+        if ( issue instanceof DocumentIssueImpl){
+
+            castedIssue = getIssueByKey(issue.getKey())
+        }
+
+
+        return castedIssue
+    }
+
+    def getStoryFromRequirement(Issue requirement){
+
+        def Issue story
+        def  myTempListOfIssues =[]
+        myTempListOfIssues.addAll(getIssuesOfNetworkByLinkType(requirement,"1", "validates").getIssues())
+
+        //we should have only one story
+
+        story = castToIssue(myTempListOfIssues.get(0))
+
+        return story
+
+    }
+
+    def getRequirementsFromTestcase(Issue testcase){
+
+
+        def  myTempListOfIssues =[]
+        myTempListOfIssues.addAll(getIssuesOfNetworkByLinkType(testcase,"1", "tests").getIssues())
+
+
+        return myTempListOfIssues
+
+    }
+
+
+    def getStoryFromTestcase(Issue testcase){
+
+        def size
+
+        Set<Issue> issuesInNetwork = new HashSet<Issue>()
+
+        def stories = []
+
+        for(Issue item : getRequirementsFromTestcase(testcase)){
+
+
+            issuesInNetwork.addAll(getStoryFromRequirement(item))
+
+        }
+
+        stories.addAll(issuesInNetwork)
+
+        if(issuesInNetwork.size() == 1){
+            return stories.get(0)
+        }
+
+
+
+    }
+
+    def linkIssue(Issue fromIssue, Issue toIssue, String linkTypeName){
+
+        def MutableIssue mutableIssue = (MutableIssue)fromIssue
+
+        def issueLinkManager = ComponentAccessor.getIssueLinkManager()
+        def issueLinkTypeManager = ComponentAccessor.getComponentOfType(IssueLinkTypeManager.class)
+        def issueManager = ComponentAccessor.getIssueManager()
+
+        def sourceIssueId = fromIssue.getId()
+        def destinationIssueId = toIssue.getId()
+
+        def Relates = "10003"
+        def Cloners = "10001"
+        def Duplicate = "10002"
+        def Tests = "10301"
+        def Validates = "10300"
+
+        def user = getCurrentUser()
+
+
+       /**
+            def issueLinkTypes = issueLinkTypeManager.getIssueLinkTypes()
+
+            for (IssueLinkType linkType :issueLinkTypes){
+                def name = linkType.getName()
+                def id = linkType.getId()
+            }
+        **/
+
+        if(linkTypeName == "Tests"){
+            issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests),Long.valueOf(1), user)
+        }
+
+
+        issueManager.updateIssue(user,mutableIssue,EventDispatchOption.ISSUE_UPDATED, false)
+
+    }
 
 
 
