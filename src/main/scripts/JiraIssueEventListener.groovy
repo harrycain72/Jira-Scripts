@@ -1,34 +1,18 @@
 // R.Wangemann
-//v1.0.7
-
-
-import com.atlassian.greenhopper.service.sprint.Sprint
-import com.atlassian.gzipfilter.org.apache.commons.lang.time.DurationFormatUtils
 import com.atlassian.jira.bc.issue.link.DefaultRemoteIssueLinkService
 import com.atlassian.jira.bc.project.component.ProjectComponent
 import com.atlassian.jira.component.ComponentAccessor
 import com.atlassian.jira.event.issue.IssueEvent
 import com.atlassian.jira.issue.Issue
 import com.atlassian.jira.issue.IssueManager
-import com.atlassian.jira.issue.ModifiedValue
-import com.atlassian.jira.issue.MutableIssue
-import com.atlassian.jira.issue.fields.CustomField
-import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
-import com.atlassian.jira.issue.label.LabelManager
 import com.atlassian.jira.issue.link.DefaultRemoteIssueLinkManager
 import com.atlassian.jira.issue.link.RemoteIssueLink
 import com.atlassian.jira.issue.link.RemoteIssueLinkBuilder
 import com.atlassian.jira.issue.search.SearchProvider
-import com.atlassian.jira.issue.util.DefaultIssueChangeHolder
 import com.atlassian.jira.jql.parser.JqlQueryParser
-import com.atlassian.jira.user.ApplicationUser
-import com.atlassian.jira.user.util.UserUtil
 import com.atlassian.jira.web.bean.PagerFilter
-import com.atlassian.crowd.embedded.api.User
 import org.apache.log4j.Category
-
-
-
+import util.Helper
 
 
 //method retrieves the current application user
@@ -54,329 +38,6 @@ def getCurrentUser() {
     currentUser = jac.getUser().getDirectoryUser()
 }
 
-//this method creates a comment
-def addComment(Issue issue, String myComment) {
-
-    cmm = ComponentAccessor.getCommentManager()
-
-    //cmm.create(issue,getCurrentApplicationUser(),myComment,true)
-    cmm.create(issue,getCurrentApplicationUser(),myComment,true)
-
-
-}
-
-
-//this method gets the value of a customfield value by its name
-def getCustomFieldValue(Issue issue, String myCustomField) {
-
-    cfm = ComponentAccessor.getCustomFieldManager()
-
-    CustomField customField = cfm.getCustomFieldObjectByName(myCustomField);
-    return  (String)customField.getValue(issue);
-
-}
-
-
-
-
-// this method returns a customfield
-def getCustomField(String myCustomFieldName) {
-
-    cfm = ComponentAccessor.getCustomFieldManager()
-
-    CustomField myCustomField = cfm.getCustomFieldObjectByName(myCustomFieldName);
-    return  myCustomField
-
-}
-
-
-//this method gets a list of subtasks of an issue, retrieves their summary and checks if a defined one exists in this list.
-def checkIfSubTaskSummaryExists(Issue issue, String mySummaryToBeChecked) {
-
-    //we create a list of all subtasks for the active issue
-    def subTasks = issue.getSubTaskObjects()
-
-
-    //we create a list of all summaries of all found subtasks
-    def subTasksSummaries = []
-
-    subTasks.each {
-
-        subTasksSummaries.add(it.getSummary())
-    }
-
-    //we check if in the list of summaries  o
-    def checkResult  = subTasksSummaries.contains(mySummaryToBeChecked)
-
-    return checkResult
-}
-
-
-//this method is responsible for the creation of subTask
-def addSubTask(Issue issue, String subTaskName, String subTaskSummary, String subTaskDescription) {
-
-
-    //start customizing
-
-    def issueTypeIdForSubTask = "5"
-
-    //end customizing
-
-
-
-
-
-    //Instanzierung der factories
-    isf = ComponentAccessor.getIssueFactory()
-
-    //IssueFactory: we create her a generic issue
-    def issueObject = isf.getIssue()
-
-    issueObject.setProjectObject(issue.getProjectObject())
-
-    //Possible IssueTypeValues are 10001 story, 10101 subtask, 10102 bug, 10000 epic
-    // old value 5 ?
-    issueObject.setIssueTypeId(issueTypeIdForSubTask)
-
-    //getValues of current issue = parent
-    issueObject.setParentId(issue.getId())
-
-
-    // set summary of subTask
-    if(subTaskSummary == "") {
-        issueObject.setSummary(subTaskName + ': user story ' + issue.getSummary())
-    }
-
-    else {
-        issueObject.setSummary(subTaskName + ": " + subTaskSummary)
-    }
-
-
-
-    issueObject.setAssignee(issue.getAssignee())
-    issueObject.setDescription(subTaskDescription)
-    issueObject.setReporter(issue.getReporter())
-
-
-
-    //here we check if the value for the summary of a subtasks has already been used. We do not want to have
-    //two subtasks with the same value.
-    def toBeCreatedSubTaskSummary
-
-    if(subTaskSummary == ""){
-        toBeCreatedSubTaskSummary = subTaskName + ': user story ' + issue.getSummary()
-    }
-
-    else {
-        toBeCreatedSubTaskSummary = subTaskName + ": " + subTaskSummary
-    }
-
-
-    checkResult = checkIfSubTaskSummaryExists(issue,toBeCreatedSubTaskSummary)
-
-
-    // we only create our new SubTask if the the value of summary does not exist in any already defined subtask
-    if (!checkResult) {
-
-        //the issue gets created with the IssueMngr
-        ism = ComponentAccessor.getIssueManager()
-
-        //Security
-        //jac = ComponentAccessor.getJiraAuthenticationContext()
-
-        currentUser = getCurrentUser()
-
-        subTask = ism.createIssueObject(currentUser, issueObject)
-
-
-
-
-        //the created subtask is linked to the issue.This is done through the SubTaskMngr
-
-        stm = ComponentAccessor.getSubTaskManager()
-        stm.createSubTaskIssueLink(issue, subTask, currentUser)
-
-
-        // disable the watcher using the WatcherManager
-        wtm = ComponentAccessor.getWatcherManager()
-        wtm.stopWatching(currentUser, subTask)
-
-    }
-
-}
-
-
-
-//Method retrieves the Fixed Version name of the current issue
-def getReleaseName(Issue issue){
-
-    // MutableIssue myMutableIssue = (MutableIssue)issue;// Flag EV is necessary to be able to be triggered by an event / listener
-
-    ArrayList myListReleases = (ArrayList)issue.getFixVersions()
-
-    def release = "-"
-
-    if(myListReleases!=null){
-
-
-
-        //we only consider getting the first item, even though more fix versions can be assigned to an issue
-        release = (String)myListReleases[0]
-
-    }
-
-
-    return release
-}
-
-// method retrieves the assigned sprint of an issue
-def getSprintName(Issue issue){
-
-    ArrayList<Sprint> listOfSprints = (ArrayList<Sprint>) ComponentAccessor.getCustomFieldManager().getCustomFieldObjectByName("Sprint").getValue(issue);
-
-    def SprintName ="-"
-
-    if(listOfSprints!=null){
-
-        //we only consider getting the first sprint in the list, event though more sprints can be assigned to an issue
-        SprintName = (String)listOfSprints[0].getName()
-    }
-
-    else {
-        //do something else
-
-    }
-
-    return SprintName
-}
-
-def setCustomFieldValue(Issue issue, String myValueToSave, CustomField myCustomField){
-
-    def MutableIssue myMutableIssue = (MutableIssue)issue
-
-    myMutableIssue.setCustomFieldValue(myCustomField,myValueToSave)
-
-
-    Map<String,ModifiedValue> modifiedFields = myMutableIssue.getModifiedFields()
-
-    FieldLayoutItem myFieldLayoutItem = ComponentAccessor.getFieldLayoutManager().getFieldLayout(myMutableIssue).getFieldLayoutItem(myCustomField)
-
-    DefaultIssueChangeHolder myDefaultIssueChangeHolder = new DefaultIssueChangeHolder()
-
-    final ModifiedValue myModifiedValue = modifiedFields.get(myCustomField.getId())
-
-    myCustomField.updateValue(myFieldLayoutItem,myMutableIssue,myModifiedValue,myDefaultIssueChangeHolder)
-
-}
-
-
-def setCustomFieldValueUserPicker(Issue issue, String userName, CustomField myCustomField){
-
-
-
-    def MutableIssue myMutableIssue = (MutableIssue)issue
-
-    UserUtil userUtil = ComponentAccessor.getUserUtil()
-    ApplicationUser applicationUser = userUtil.getUserByName(userName)
-
-
-    myMutableIssue.setCustomFieldValue(myCustomField,applicationUser)
-
-
-    Map<String,ModifiedValue> modifiedFields = myMutableIssue.getModifiedFields()
-
-    FieldLayoutItem myFieldLayoutItem = ComponentAccessor.getFieldLayoutManager().getFieldLayout(myMutableIssue).getFieldLayoutItem(myCustomField)
-
-    DefaultIssueChangeHolder myDefaultIssueChangeHolder = new DefaultIssueChangeHolder()
-
-    final ModifiedValue myModifiedValue = modifiedFields.get(myCustomField.getId())
-
-    myCustomField.updateValue(myFieldLayoutItem,myMutableIssue,myModifiedValue,myDefaultIssueChangeHolder)
-
-}
-
-def setLabel(Issue issue, String newValue, String fieldName, Category log){
-
-
-
-    //debugging
-    log.debug("Entering setLabel for issue: " + issue.getKey() +" and field " + fieldName)
-    long time= System.currentTimeMillis()
-
-    if (newValue == ""){ newValue ="-"}
-
-    //we should always have a value for a label!
-    if(newValue !=""){
-
-        LabelManager labelManager = ComponentAccessor.getComponent(LabelManager.class)
-
-        customFieldManager = ComponentAccessor.getCustomFieldManager()
-
-        CustomField customField = customFieldManager.getCustomFieldObjectByName(fieldName)
-
-        Set<String> set = convertToSetForLabels((String) newValue)
-
-
-        log.debug("before update for field" + fieldName )
-        labelManager.setLabels(getCurrentApplicationUser().getDirectoryUser(),issue.getId(),customField.getIdAsLong(),set,false,true)
-        log.debug("after update for field " + fieldName )
-
-    }
-
-
-
-
-    //debugging
-    log.debug("Leaving setLabel for issue: " + issue.getKey() +" and field " + fieldName)
-    long completedIn = System.currentTimeMillis() - time;
-    log.debug("Setting label for issue :" + issue.getKey() +" and for field " + fieldName +" took: " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
-
-}
-
-// sets n labels for a specific issue
-def setLabels(Issue issue, Set labels, String fieldName,Category log){
-
-    LabelManager labelManager = ComponentAccessor.getComponent(LabelManager.class)
-    customFieldManager = ComponentAccessor.getCustomFieldManager()
-
-    CustomField customField = customFieldManager.getCustomFieldObjectByName(fieldName)
-
-    log.debug("before update of label for field "+ customField)
-    labelManager.setLabels(getCurrentApplicationUser().getDirectoryUser(),issue.getId(),customField.getIdAsLong(),labels,false,true)
-    log.debug("after update of label for field " + customField)
-}
-
-
-def convertToSetForLabels(String newValue){
-
-    Set<String> set = new HashSet<String>();
-
-    StringTokenizer st = new StringTokenizer(newValue," ")
-
-    String myValue = ""
-
-
-    while(st.hasMoreTokens()) {
-        if(myValue == ""){
-
-            myValue=myValue+st.nextToken()
-        }
-
-        else {
-            myValue=myValue + "_" + st.nextToken()
-        }
-
-
-    }
-
-    set.add(myValue)
-
-
-    return set
-
-}
-
-
 // This method retrieves the issue based on its key
 def getIssueByKey(String myIssueKey){
 
@@ -384,45 +45,6 @@ def getIssueByKey(String myIssueKey){
     Issue issue = ComponentAccessor.getIssueManager().getIssueByCurrentKey(myIssueKey);
 
     return issue
-}
-
-def getComponentName(Issue myIssue){
-
-    def MutableIssue myMutableIssue = (MutableIssue)myIssue
-
-    ArrayList<ProjectComponent> myComponents = (ArrayList<ProjectComponent>)myMutableIssue.getComponentObjects()
-
-    def myComponentName = ""
-
-    if (myComponents!=null){
-
-        //we only retrieve the first assigned component.
-        myComponentName = (String)myComponents[0].getName()
-
-    }
-
-
-    return myComponentName
-
-}
-
-//get Object User for assignee of issue
-
-def getAssigneeUserName(Issue myIssue){
-
-    def MutableIssue myMutableIssue = (MutableIssue)myIssue
-
-    def userName = myMutableIssue.getAssignee().getName()
-
-    return userName
-}
-
-
-
-
-def getTodaysDate(){
-    def today = new Date()
-    return today.toString()
 }
 
 //retrieves the current issue i.e. for a listener
@@ -441,178 +63,6 @@ def getCurrentIssue(String flag){
 
     return myIssue
 }
-
-
-
-
-def getSprintAndReleaseName(Issue issue){
-
-    //sprint name is "-" if not assigned to issue
-    def sprint = getSprintName(issue)
-
-    //release name is "-" if not assigned to issue
-    def release = getReleaseName(issue)
-
-    def sprintName
-
-    //sprint and release are assigned to issue
-    if(sprint != "-" && release != "-"){
-
-        sprintName = release + "_" + sprint
-    }
-
-    //only sprint assigned
-    if(sprint != "-" && release == "-") {
-
-        sprintName = "_"+sprint
-    }
-
-    //only release assigned
-    if(sprint == "-" && release != "-") {
-
-        sprintName = "-"
-    }
-
-    // get rid of the blanks
-
-    StringTokenizer st = new StringTokenizer(sprintName," ")
-
-    String myValue = ""
-
-
-    while(st.hasMoreTokens()) {
-        if(myValue == ""){
-
-            myValue=myValue+st.nextToken()
-        }
-
-        else {
-            myValue=myValue + "_" + st.nextToken()
-        }
-
-
-    }
-
-    sprintName = myValue
-
-    return sprintName
-}
-
-//removes first and last character from a String
-def removeFirstAndLastCharacterFromString(String myString){
-
-    //remove last character
-    myString = myString.substring(0, myString.length() - 1)
-
-    //remove first character
-    myString = myString.substring(1)
-
-    return myString
-}
-
-def getAlmSubject(Issue issue){
-
-    def sprint = getSprintName(issue)
-
-    def release = getReleaseName(issue)
-
-    def application_module = getCustomFieldValue(issue,".IT-App_Module")
-
-
-
-    //we only have to remove the brackets if a value in the field ".IT-App_Module" is found
-    if(application_module != null) {
-
-        //Unfortunately the value from a customfield is within []
-        //Therefore these two brackets have to be removed
-        application_module = removeFirstAndLastCharacterFromString(application_module)
-
-    }
-
-
-
-
-
-
-    def almSubject = ""
-
-    //release and sprint ar assigned to the issue
-    if(sprint != "-" && release != "-"){
-
-        if(application_module != null ){
-            almSubject = release + "_" + application_module + "_" + sprint
-        }
-
-        else {
-
-            almSubject = release + "_---_" + sprint
-        }
-    }
-
-
-    //only sprint is assigned to the issue
-    if(sprint != "-" && release == "-") {
-
-        if(application_module != null) {
-            almSubject = "---_" + application_module + "_" + sprint
-        }
-        else {
-            almSubject = "---_---_"+sprint
-        }
-
-    }
-    //only release is assigned to the issue
-    if(sprint == "-" && release != "-") {
-
-        if(application_module != null) {
-            almSubject = release +"_"+application_module+"_---"
-        }
-        else {
-            almSubject = release + "_---_---"
-        }
-
-    }
-    //neither release or sprint is assigned to the issue
-    if(sprint == "-" && release == "-") {
-
-        if(application_module != null) {
-            almSubject = "---_"+application_module+"_---"
-        }
-        else {
-            almSubject = release + "---_---_---"
-        }
-
-    }
-
-
-
-
-    // get rid of the blanks
-
-    StringTokenizer st = new StringTokenizer(almSubject," ")
-
-    String myValue = ""
-
-
-    while(st.hasMoreTokens()) {
-        if(myValue == ""){
-
-            myValue=myValue+st.nextToken()
-        }
-
-        else {
-            myValue=myValue + "_" + st.nextToken()
-        }
-
-
-    }
-
-    almSubject = myValue
-
-    return almSubject
-}
-
-
 
 def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
 
@@ -687,209 +137,7 @@ def getIssuesOfNetwork(Issue issue,String traversalDepth,String linkType){
 
 }
 
-
-//this method selects all issues specified by the query which is input
-def getIssuesByQuery(Issue issue, String myQuery){
-
-    def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
-    def searchProvider = ComponentAccessor.getComponent(SearchProvider)
-    def issueManager = ComponentAccessor.getIssueManager()
-    def user = getCurrentApplicationUser()
-    def issueId = issue.getKey()
-    def query
-
-    query = jqlQueryParser.parseQuery(myQuery)
-
-    def issues = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter())
-
-
-    return issues
-
-}
-
-
-def getIssuesOfNetwork(Issue issue, String issueType,String traversalDepth,String linkType, Category log){
-
-    def jqlQueryParser = ComponentAccessor.getComponent(JqlQueryParser)
-    def searchProvider = ComponentAccessor.getComponent(SearchProvider)
-    def issueManager = ComponentAccessor.getIssueManager()
-    def user = getCurrentApplicationUser()
-    def issueId = issue.getKey()
-    def query
-
-    log.debug("Entering getIssuesOfNetwork for issue  " + issue.getKey() +" looking for issuetype " + issueType + " and linktype "+ linkType)
-    long time = System.currentTimeMillis()
-
-// query for sub tasks without linktype
-
-    if(linkType==""){
-
-        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ") AND issuetype =" + issueType + "  ORDER BY issuetype DESC")
-
-    }
-
-// query with consideration of linkType
-    else {
-        query = jqlQueryParser.parseQuery("issueFunction in linkedIssuesOfRecursiveLimited(\"issue =" + issueId + "\"," + traversalDepth + ",\"" + linkType + "\") AND issuetype =" + issueType + "  ORDER BY issuetype DESC")
-    }
-
-    def issues = searchProvider.search(query, user, PagerFilter.getUnlimitedFilter())
-
-
-    //debugging
-    log.debug("Leaving getIssuesOfNetwork for issue  " + issue.getKey() +" looking for issuetype " + issueType + " and linktype "+ linkType)
-    long completedIn = System.currentTimeMillis() - time
-    log.debug("getIssuesOfNetwork for issue " + issue.getKey() + "took "  + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
-
-
-    return issues
-
-
-}
-
-
-def setReleaseAndSprintNamesInPKE(Issue issue,String customFieldName,log){
-
-    //start customizing
-
-    def issueTypeStory = "Story"
-    def issueTypePKE = "PKE"
-    def linkTypeRelatesTo = "relates to"
-
-    //end customizing
-
-
-    //we need the IssueManager in order to create the issue of the the result of the query
-    IssueManager issueManager = ComponentAccessor.getIssueManager()
-
-    //get all stories linked by relates to
-    def stories = getIssuesOfNetwork(issue,issueTypeStory,"3",linkTypeRelatesTo,log).getIssues()
-
-    //get the pke. We should only have one PKE linked to the stories
-    def pkes = getIssuesOfNetwork(issue,issueTypePKE,"3",linkTypeRelatesTo,log).getIssues()
-
-    //get the sprint name for each story. The names must be updated as labels in the pke
-
-    Set<String> sprintNamesSet = new HashSet<String>()
-
-
-    stories.each {
-
-        //we create an issue
-        def myIssue = issueManager.getIssueObject(it.getId())
-
-        def mySprintAndReleaseName = getSprintAndReleaseName(myIssue)
-
-        sprintNamesSet.add(mySprintAndReleaseName)
-
-    }
-
-
-
-    //we should have only one common business request for all found stories
-    if (pkes.size()== 1){
-
-
-        //we create an issue
-        def myPKE = issueManager.getIssueObject(pkes.get(0).getId())
-
-        setLabels(myPKE,sprintNamesSet,customFieldName,log)
-    }
-
-
-    // not nice
-    println ""
-
-    // end of new stuff
-}
-
-
-def setReleaseAndSprintNamesInBusinessRequest(Issue issue, String customFieldName,Category log){
-
-    //start customizing
-
-    def issueTypeStory = "Story"
-    def issueTypeBusinessRequest = "\"Business Request\""
-    def linkTypeRelatesTo = "relates to"
-
-    //end customizing
-
-    //debugging
-    log.debug("Entering getReleaseAndSprintNamesInBusinessRequest: " + issue.getKey() +" and field " + customFieldName)
-    long time= System.currentTimeMillis()
-
-
-
-    //we need the IssueManager in order to create the issue of the the result of the query
-    IssueManager issueManager = ComponentAccessor.getIssueManager()
-
-    //get all stories linked by relates to
-    def stories = getIssuesOfNetwork(issue,issueTypeStory,"3",linkTypeRelatesTo,log).getIssues()
-
-    //get the business request. We should only have one business request linked to the stories
-    def businessRequests= getIssuesOfNetwork(issue,issueTypeBusinessRequest,"3",linkTypeRelatesTo,log).getIssues()
-
-    //get the sprint name for each story. The names must be updated as labels in the business request
-
-    Set<String> sprintNamesSet = new HashSet<String>()
-
-
-    stories.each {
-
-        //we create an issue
-        def myIssue = issueManager.getIssueObject(it.getId())
-
-        def mySprintAndReleaseName = getSprintAndReleaseName(myIssue)
-
-        sprintNamesSet.add(mySprintAndReleaseName)
-
-    }
-
-
-
-    //we should have only one common business request for all found stories
-    if (businessRequests.size()== 1){
-
-
-        //we create an issue
-        def myBusinessRequest = issueManager.getIssueObject(businessRequests.get(0).getId())
-
-        setLabels(myBusinessRequest,sprintNamesSet,customFieldName,log)
-    }
-
-
-
-    //debugging
-    log.debug("Leaving getReleaseAndSprintNamesInBusinessRequest: " + issue.getKey() +" and field " + customFieldName)
-    long completedIn = System.currentTimeMillis() - time;
-    log.debug("getReleaseAndSprintNamesInBusinessRequest for issue :" + issue.getKey() +"took time: " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
-
-
-
-}
-
-def updateComponents(Issue issue, Collection<ProjectComponent> components){
-
-    IssueManager issueManager = ComponentAccessor.getIssueManager()
-
-    MutableIssue mutableIssue = issue
-
-    mutableIssue.setComponentObjects(components)
-
-    User user = getCurrentApplicationUser().getDirectoryUser()
-
-    issueManager.updateIssue(user,mutableIssue,com.atlassian.jira.event.type.EventDispatchOption.DO_NOT_DISPATCH,false)
-
-
-}
-
-
-
-
 // feature copy link to confluence from one issue to the linked issues
-//
-
-
 def syncExternalLinks(Issue issue){
 
 
@@ -1232,8 +480,6 @@ def syncExternalLinks(Issue issue){
 
 }
 
-
-
 def configureSync(Issue issue,List businessRequests, List Epics, List stories, List requirements, List testCases, List pkes, List bugs){
 
 
@@ -1426,10 +672,6 @@ def configureSync(Issue issue,List businessRequests, List Epics, List stories, L
 
 
 }
-
-
-
-
 
 def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinksTo){
 
@@ -1627,8 +869,304 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
 
 }
 
+def setReleaseSprint(Issue issue, Helper hp){
 
-def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
+
+    //begin customizing
+
+        def customFieldNameRelease = ".Release"
+        def customFieldNameSprint = ".Sprint"
+
+
+    //end customizing
+
+
+        def issueType = issue.getIssueTypeObject().getName()
+
+
+        //copy to --> .Release
+        hp.setLabelCustomField(issue,hp.getFirstReleaseName(issue),customFieldNameRelease)
+
+
+        //copy to --> .Sprint
+        hp.setLabelCustomField(issue,hp.getSprintName(issue),customFieldNameSprint)
+
+
+}
+
+def setReleaseSrintAlmSubjectforAllRequirementsAndTestCases(Issue issue,Helper hp){
+
+    //begin customizing
+
+    def customFieldNameDeveloper = ".Developer"
+    def nameOfPrefix = "DEV"
+    def issueTypeNameSubTasks = "Sub-task"
+    def issueTypeNameStory = "Story"
+    def issueTypeNameRequirement = "Requirement"
+    def issueTypeNameTestCase = "Test Case"
+    def issueTypeNameBug = "Bug"
+
+    //end customizing
+
+    //make sure we copy the .developer if this exists
+
+    Set<Issue> issuesInNetwork = new HashSet<Issue>()
+    List myTempListOfIssues = []
+
+    //get the requirements
+    myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByLinkType(issue, "1", "is validated by").getIssues())
+
+    issuesInNetwork.addAll(myTempListOfSubTasks)
+
+
+    //get the test cases for all requirements
+    for(Issue item : issuesInNetwork){
+
+        myTempListOfSubTasks = []
+
+        myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByLinkType(item,"1","is tested by").getIssues())
+
+        issuesInNetwork.addAll(myTempListOfSubTasks)
+
+    }
+
+    // for all found issues set now .release .sprint and .alm_subject
+
+    for(Issue item : issuesInNetwork){
+
+        setReleaseSprint(issue)
+
+    }
+
+
+}
+
+
+
+def setDeveloperNameForIssue(Issue issue, Helper hp){
+
+    //begin customizing
+
+        def customFieldNameDeveloper = ".Developer"
+        def nameOfPrefix = "DEV"
+        def issueTypeNameSubTasks = "Sub-task"
+        def issueTypeNameStory = "Story"
+        def issueTypeNameRequirement = "Requirement"
+        def issueTypeNameTestCase = "Test Case"
+        def issueTypeNameBug = "Bug"
+
+    //end customizing
+
+
+    //make sure we copy the .developer if this exists
+
+    Set<Issue> issuesInNetwork = new HashSet<Issue>()
+    List myTempListOfSubTasks = []
+    def nameDeveloper = ""
+
+
+    //if a new requirement is created we need to get the developer name of the
+    //related user story
+
+    if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement) {
+
+        //get the name of the developer
+
+        //get the user story based on link type "validates"
+        myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByLinkType(issue, "1", "validates").getIssues())
+
+        issuesInNetwork.addAll(myTempListOfSubTasks)
+
+        //get the sub tasks
+        for(Issue item : issuesInNetwork){
+
+            if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
+
+                myTempListOfSubTasks = []
+
+                myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByIssueTypeAndLinkType(item,issueTypeNameSubTasks,"1","").getIssues())
+
+                //get the subtask beginning with DEV
+                for(Issue subTask : myTempListOfSubTasks){
+
+                    if (subTask.getSummary().substring(0,3)== nameOfPrefix) {
+
+                        nameDeveloper = subTask.getAssignee().getName()
+
+                    }
+                }
+            }
+
+
+
+        }
+
+        hp.setCustomFieldValueUserPicker(issue,nameDeveloper,hp.getCustomField(customFieldNameDeveloper))
+
+    }
+
+
+
+
+
+    // if a test case is created, then this test case has to be assigned the developer name
+
+    if(issue.getIssueTypeObject().getName() == issueTypeNameTestCase) {
+
+        //get the name of the developer
+
+
+        Set<Issue> myListOfStories = new HashSet<Issue>()
+        Set<Issue> myListOfRequirements = new HashSet<Issue>()
+
+
+        //get the requirements which are tested by the the test case
+        myListOfRequirements.addAll(hp.getIssuesOfNetworkByLinkType(issue, "1", "tests").getIssues())
+
+
+        //get the stories for each requirement
+        for(Issue item : myListOfRequirements){
+
+            if(item.getIssueTypeObject().getName()== issueTypeNameRequirement){
+
+                myListOfStories = []
+                myListOfStories.addAll(hp.getIssuesOfNetworkByLinkType(item, "1", "validates").getIssues())
+
+            }
+
+        }
+
+
+        //get the sub tasks for the user stories and the name of the developer assigned to subtask with prefix DEV
+        for(Issue item : myListOfStories){
+
+            if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
+
+                myTempListOfSubTasks = []
+
+                myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByIssueTypeAndLinkType(item,issueTypeNameSubTasks,"1","").getIssues())
+
+                //get the subtask beginning with DEV
+                for(Issue item2 : myTempListOfSubTasks){
+
+                    if (item2.getSummary().substring(0,3)== nameOfPrefix) {
+
+                        nameDeveloper = item2.getAssignee().getName()
+
+                    }
+                }
+            }
+
+
+
+        }
+
+
+        hp.setCustomFieldValueUserPicker(issue,nameDeveloper,hp.getCustomField(customFieldNameDeveloper))
+
+
+    }
+
+
+    //if a bug is created, then the name of the developer of the related story has to be assigned
+    if(issue.getIssueTypeObject().getName() == issueTypeNameBug) {
+
+        //get the name of the developer and add this to the Bug
+
+
+        Set<Issue> myListOfStories = new HashSet<Issue>()
+        Set<Issue> myListOfRequirements = new HashSet<Issue>()
+        Set<Issue> myListOfTestCases = new HashSet<Issue>()
+
+
+
+        //get the test cases
+        myListOfTestCases.addAll(hp.getIssuesOfNetworkByLinkType(issue, "1", "blocks").getIssues())
+
+        //get the requirements
+        for(Issue item : myListOfTestCases) {
+            if(item.getIssueTypeObject().getName() == issueTypeNameTestCase){
+
+                myListOfRequirements.addAll(hp.getIssuesOfNetworkByLinkType(item, "1", "tests").getIssues())
+            }
+
+        }
+
+        //get the stories for each requirement
+        for(Issue item : myListOfRequirements){
+
+            if(item.getIssueTypeObject().getName()== issueTypeNameRequirement){
+
+                myListOfStories = []
+                myListOfStories.addAll(hp.getIssuesOfNetworkByLinkType(item, "1", "validates").getIssues())
+
+            }
+
+        }
+
+
+        //get the sub tasks for the user stories and the name of the developer assigned to subtask with prefix DEV
+        for(Issue item : myListOfStories){
+
+            if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
+
+                myTempListOfSubTasks = []
+
+                myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByIssueTypeAndLinkType(item,issueTypeNameSubTasks,"1","").getIssues())
+
+                //get the subtask beginning with DEV
+                for(Issue item2 : myTempListOfSubTasks){
+
+                    if (item2.getSummary().substring(0,3)== nameOfPrefix) {
+
+                        nameDeveloper = item2.getAssignee().getName()
+
+                    }
+                }
+            }
+
+
+
+        }
+
+        hp.setCustomFieldValueUserPicker(issue,nameDeveloper,hp.getCustomField(customFieldNameDeveloper))
+
+
+
+    }
+}
+
+def setWokflowStatusForRequirement(Issue issue,Helper hp){
+
+    def customfieldNameTestStatus = ".TestStatus"
+    // set workflow transition
+
+    def testStatus = hp.getCustomFieldValue(issue,customfieldNameTestStatus)
+
+    //set workflowtransition using the transition id
+    //in Progress = 21
+    //To Do = 11
+    //DONE = 31
+
+    if(testStatus == "in progress"){
+        hp.setWorkflowTransition(issue,21)
+    }
+
+    else if(testStatus == "to do"){
+        hp.setWorkflowTransition(issue,11)
+    }
+
+    else if(testStatus == "done"){
+        hp.setWorkflowTransition(issue,31)
+    }
+
+    else {
+        println ""
+    }
+}
+
+
+def main(Issue issue, Category log, Helper hp){
 
 
 
@@ -1642,6 +1180,12 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
     def customFieldNameSprintAndReleaseNames = ".Sprints"
     def customFieldNameDeveloper = ".Developer"
     def customFieldNameAlmSubject = ".Alm_Subject"
+    def customFieldNameStoryID = ".StoryID"
+    def customFieldNameITApp_Module = ".IT-App_Module"
+    def customFieldNameRequirementID = ".RequirementID"
+    def customfieldNameTestCaseOrigin = ".TestCaseOrigin"
+    def customfieldNameAlmSubjectHP = ".ALM_Subject_HP"
+    def customfieldNameTestStatus = ".TestStatus"
     def nameOfPrefix = "DEV"
     def issueTypeNameSubTasks = "Sub-task"
     def issueTypeNameStory = "Story"
@@ -1650,28 +1194,34 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
     def issueTypeNameBug = "Bug"
 
 
+
     //end customizing
     def issueType = issue.getIssueTypeObject().getName()
 
     // These names should be standard in JIRA and not change from release to release
-    def listOfFieldNames = ["description","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module"]
+    def listOfFieldNames = ["description","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module",".TestStatus"]
     def searchResult
     def field
 
 
-    //only relevant if we have an update
+    //only true if we have an update
     if(issue.created != issue.updated){
 
-        //def test = event.getChangeLog().getRelated('ChildChangeItem')
+        //just relevant for testing purposes in order to check the name of JIRA-fields
+        def test = event.getChangeLog().getRelated('ChildChangeItem')
 
+
+        // we loop over all field names, for which we want to check if an update has happened.
         for (item in listOfFieldNames) {
 
+           // def test = event.getChangeLog().getRelated('ChildChangeItem')
 
             log.debug("Entering event.getChangeLog().getRelated('ChildChangeItem') and looking for " + item)
 
             def check = event.getChangeLog().getRelated('ChildChangeItem').find { it.field == item }
 
 
+            //is null if not update was found for the field
             if(check != null) {
 
                 searchResult = check
@@ -1695,24 +1245,26 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
         if (searchResult != null && field == "Component") {
 
 
+            //get all components for the issue
             Collection<ProjectComponent> myComponents = issue.getComponentObjects()
 
-
+            // only a story has subtasks
             if (issueType == issueTypeNameStory) {
 
                 // get all SubTasks for the story
-                def subTasks = getIssuesOfNetwork(issue,issueTypeNameSubTasks,"1","",log).getIssues()
+
+                def subTasks = hp.getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypeNameSubTasks,"1","").getIssues()
 
                 //we need the IssueManager in order to create the issue of the the result of the query
                 IssueManager issueManager = ComponentAccessor.getIssueManager()
 
-
+                //every subtask is updated will all components of the story
                 subTasks.each {
 
                     //we create an issue
                     def myIssue = issueManager.getIssueObject(it.getId())
 
-                    updateComponents(myIssue,myComponents)
+                    hp.updateComponents(myIssue,myComponents)
 
                 }
 
@@ -1723,55 +1275,65 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
         }//end of handling of components
 
 
-
-
         //if the field "fix version" or sprint was updated then, we copy the value to the defined customfields
 
         if (searchResult != null && field == "Fix Version" || field == "Sprint"){
 
-            log.debug("Entering handling update of field: " + field)
-            long time = System.currentTimeMillis()
+
+            if(issue.getIssueTypeObject().getName() == issueTypeNameStory){
+
+                //retrieve sprint and fixversion and copy the values to the customfields .Release and .Alm_Subject and .Sprint
+                setReleaseSprint(issue,hp)
 
 
 
-            //copy the value to the customfields .Release and .Alm_Subject and .Sprint
 
-            //copy to --> .Release
-            setLabel(issue,getReleaseName(issue),customFieldNameRelease,log)
+                //if the release is changed but the sprint remains - which should not really be the case
+                //then we must make sure, that this change is also available for the relevant business requests
 
+                hp.setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames)
 
-            //copy to --> .Sprint
-            setLabel(issue,getSprintName(issue),customFieldNameSprint,log)
-
-            //copy to --> .Alm_Subject
-            setLabel(issue,getAlmSubject(issue),customFieldNameAlmSubject,log)
+                hp.setReleaseAndSprintNamesInPKE(issue,customFieldNameSprintAndReleaseNames)
 
 
-            //if the release is changed but the sprint remains - which should not really be the case
-            //then we must make sure, that this change is also available for the relevant business requests
-            setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames,log)
-            setReleaseAndSprintNamesInPKE(issue,customFieldNameSprintAndReleaseNames,log)
+                //update .release and .sprint
+                for(Issue issue1 : hp.getAllRequirementTestCasesBugForStory(issue)){
 
-            log.debug("Leaving handling update of field: " + field)
-            long completedIn = System.currentTimeMillis() - time;
-            log.debug("Handling of an update of field :" + field +"took this time: " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
+                    hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameRelease)),customFieldNameRelease)
+                    hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameSprint)),customFieldNameSprint)
+
+
+                    if(issue1.getIssueTypeObject().getName() == issueTypeNameTestCase){
+
+
+                        hp.setLabelCustomField(issue1, hp.getAlmSubject(issue1,issue,hp),customFieldNameAlmSubject)
+                    }
+                }
+
+            }
+
+
 
 
         }
 
         if (searchResult != null && field == "description"){
 
-            log.debug("Entering handling update of field: " + field)
-            long time = System.currentTimeMillis()
 
+            //TODO refactoring necessary
             syncExternalLinks(issue)
 
-            log.debug("Leaving handling update of field: " + field)
-            long completedIn = System.currentTimeMillis() - time;
-            log.debug("Handling of an update of field :" + field +"took : " + DurationFormatUtils.formatDuration(completedIn, "HH:mm:ss:SS"))
+        }
 
+
+        if (searchResult != null && field == ".TestStatus"){
+
+            //set the workflowstatus based on customfield  .TestStatus
+            setWokflowStatusForRequirement(issue,hp)
 
         }
+
+
 
         if (searchResult != null && field == "assignee") {
 
@@ -1783,25 +1345,24 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 
 
             //we only copy the name of the developer if the subtasks begins witn prefix DEV
+            //set developer name for subTask, story, requirements and test cases
+
             if(issueType == issueTypeNameSubTasks && keyWord == nameOfPrefix){
 
                 def newAssignee = searchResult.newstring
                 def userName
 
 
-                log.debug("NewAssignee=" + newAssignee)
-                log.debug("issueType="+issueType)
-
 
                 // set for this issue of type sub task the customfield .Developer t
 
                 if(newAssignee != null) {
 
-                    userName = getAssigneeUserName(issue)
+                    userName = hp.getAssigneeUserName(issue)
 
                 }
 
-                if(newAssignee == null){
+                else {
                     userName = ""
                 }
 
@@ -1810,62 +1371,27 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
                 //set for the parent issue of type story the customfield .Developer
                 //setLabel(issue,newAssignee,customFieldNameDeveloper,log)
 
-                setCustomFieldValueUserPicker(issue,userName,getCustomField(customFieldNameDeveloper))
+                hp.setCustomFieldValueUserPicker(issue,userName,hp.getCustomField(customFieldNameDeveloper))
 
 
-                //now we want to copy the name of the developer to all related requirements and test cases
+                //get the user story based on link type "validates" and set .developername
+                def  myTempListOfStories =[]
+                myTempListOfStories.addAll(hp.getIssuesOfNetworkByIssueTypeAndLinkType(issue,"Story","1", "").getIssues())
 
-
-                Set<Issue> issuesInNetwork = new HashSet<Issue>()
-                List myTempList = []
-
-
-                // get my parent. For this look in the network of linked issues, from my point of view 1 level deep
-                // for a sub task the link type to its parent should be left blank
-                issuesInNetwork = getIssuesOfNetwork(issue,issueTypeNameStory,"1","",log).getIssues()
-
-
-                //get all requirements for all user stories
-                for(Issue item : issuesInNetwork){
-                    if(item.getIssueTypeObject().getName()==issueTypeNameStory){
-                        myTempList.addAll(getIssuesOfNetwork(item, "1", "is validated by").getIssues())
-                    }
-
-                    issuesInNetwork.addAll(myTempList)
-
-                    //get all test cases for all requirements
-
-                    myTempList = []
-                    //get the test cases for each requirement
-                    for (Issue item1 : issuesInNetwork){
-                        if(item1.getIssueTypeObject().getName() == issueTypeNameRequirement ){
-
-                            myTempList.addAll(getIssuesOfNetwork(item1, "1", "is tested by").getIssues())
-
-                        }
-                    }
-
-                    issuesInNetwork.addAll(myTempList)
+                hp.setCustomFieldValueUserPicker(myTempListOfStories.get(0),userName,hp.getCustomField(customFieldNameDeveloper))
 
 
 
-                    //we need the IssueManager in order to create the issue of the the result of the query
-                    IssueManager issueManager = ComponentAccessor.getIssueManager()
+                //now we want to copy the name of the developer to all to the story related requirements and test cases and bugs
+
+                for(Issue issue1 : hp.getAllRequirementTestCasesBugForStory(myTempListOfStories[0])){
+
+                   hp.setCustomFieldValueUserPicker(issue1,userName,hp.getCustomField(customFieldNameDeveloper))
 
 
-
-                    for(Issue anIssue :issuesInNetwork){
-
-                        //we create an issue
-                        def myIssue = issueManager.getIssueObject(anIssue.getId())
-
-                        setCustomFieldValueUserPicker(myIssue,userName,getCustomField(customFieldNameDeveloper))
-
-                    }
 
                 }
 
-                println ""
             }
 
 
@@ -1878,190 +1404,130 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
         if (searchResult != null && field == ".IT-App_Module"){
 
 
-            //copy to --> .Alm_Subject
-            setLabel(issue,getAlmSubject(issue),customFieldNameAlmSubject,log)
+            if(issueType == issueTypeNameStory){
+
+
+                //update .release and .sprint
+                for(Issue issue1 : hp.getAllRequirementTestCasesBugForStory(issue)){
+
+
+                    hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameITApp_Module)),customFieldNameITApp_Module)
+
+
+                    if(issue1.getIssueTypeObject().getName() == issueTypeNameTestCase){
+
+                        def origin = hp.getCustomFieldValue(issue1,customfieldNameTestCaseOrigin)
+
+                        //set AlmSubject depending of origin
+                        if(origin != "HP-ALM" ){
+
+                            // use the value build in jira
+                            hp.setLabelCustomField(issue, hp.getAlmSubject(issue,story,hp),customFieldNameAlmSubject)
+                        }
+
+                        if(origin == "HP-ALM"){
+                            // use the value with origin HP
+                            hp.setLabelCustomField(issue, hp.getCustomFieldValue(issue,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
+                        }
+
+
+
+                    }
+
+                }
+
+            }
+
+            else {
+                // nothing to do
+            }
 
 
         }
 
 
 
-
-
     }
+
+
+
 
 
     //we handle here the issue created event
+    // issue.created = issue.updated
     else {
 
+        if(issue.getIssueTypeObject().getName() == issueTypeNameStory){
 
-        //make sure we copy the .developer if this exists
-
-        Set<Issue> issuesInNetwork = new HashSet<Issue>()
-        List myTempList = []
-        List mySubtasks = []
-        def nameDeveloper
-
-        if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement) {
-
-            //get the name of the developer
-
-            //get the user story
-            myTempList.addAll(getIssuesOfNetwork(issue, "1", "validates").getIssues())
-
-            issuesInNetwork.addAll(myTempList)
-
-            //get the sub tasks
-            for(Issue item : issuesInNetwork){
-
-                if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
-
-                    myTempList = []
-
-                    myTempList.addAll(getIssuesOfNetwork(item,issueTypeNameSubTasks,"1","",log).getIssues())
-
-                    //get the subtask beginning with DEV
-                    for(Issue item2 : myTempList){
-
-                        if (item2.getSummary().substring(0,3)== nameOfPrefix) {
-
-                            nameDeveloper = item2.getAssignee().getName()
-
-                        }
-                    }
-                }
-
-
-
-            }
-
-            setCustomFieldValueUserPicker(issue,nameDeveloper,getCustomField(customFieldNameDeveloper))
-
-        }
-
-        if(issue.getIssueTypeObject().getName() == issueTypeNameTestCase) {
-
-            //get the name of the developer
-
-
-            Set<Issue> myListOfStories = new HashSet<Issue>()
-            Set<Issue> myListOfRequirements = new HashSet<Issue>()
-
-
-            //get the requirements which are tested by the the test case
-            myListOfRequirements.addAll(getIssuesOfNetwork(issue, "1", "tests").getIssues())
-
-
-            //get the stories for each requirement
-            for(Issue item : myListOfRequirements){
-
-                if(item.getIssueTypeObject().getName()== issueTypeNameRequirement){
-
-                    myListOfStories = []
-                    myListOfStories.addAll(getIssuesOfNetwork(item, "1", "validates").getIssues())
-
-                }
-
-            }
-
-
-            //get the sub tasks for the user stories and the name of the developer assigned to subtask with prefix DEV
-            for(Issue item : myListOfStories){
-
-                if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
-
-                    myTempList = []
-
-                    myTempList.addAll(getIssuesOfNetwork(item,issueTypeNameSubTasks,"1","",log).getIssues())
-
-                    //get the subtask beginning with DEV
-                    for(Issue item2 : myTempList){
-
-                        if (item2.getSummary().substring(0,3)== nameOfPrefix) {
-
-                            nameDeveloper = item2.getAssignee().getName()
-
-                        }
-                    }
-                }
-
-
-
-            }
-
-            setCustomFieldValueUserPicker(issue,nameDeveloper,getCustomField(customFieldNameDeveloper))
+            setReleaseSprint(issue,hp)
 
 
         }
 
-        if(issue.getIssueTypeObject().getName() == issueTypeNameBug) {
 
-            //get the name of the developer and add this to the Bug
+        //set the .DeveloperName as assigned to subtask with prefix DEV
+        if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement || issueTypeNameTestCase || issueTypeNameBug){
 
-
-            Set<Issue> myListOfStories = new HashSet<Issue>()
-            Set<Issue> myListOfRequirements = new HashSet<Issue>()
-            Set<Issue> myListOfTestCases = new HashSet<Issue>()
-
-
-
-            //get the test cases
-            myListOfTestCases.addAll(getIssuesOfNetwork(issue, "1", "blocks").getIssues())
-
-            //get the requirements
-            for(Issue item : myListOfTestCases) {
-                if(item.getIssueTypeObject().getName() == issueTypeNameTestCase){
-
-                    myListOfRequirements.addAll(getIssuesOfNetwork(item, "1", "tests").getIssues())
-                }
-
-            }
-
-            //get the stories for each requirement
-            for(Issue item : myListOfRequirements){
-
-                if(item.getIssueTypeObject().getName()== issueTypeNameRequirement){
-
-                    myListOfStories = []
-                    myListOfStories.addAll(getIssuesOfNetwork(item, "1", "validates").getIssues())
-
-                }
-
-            }
-
-
-            //get the sub tasks for the user stories and the name of the developer assigned to subtask with prefix DEV
-            for(Issue item : myListOfStories){
-
-                if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
-
-                    myTempList = []
-
-                    myTempList.addAll(getIssuesOfNetwork(item,issueTypeNameSubTasks,"1","",log).getIssues())
-
-                    //get the subtask beginning with DEV
-                    for(Issue item2 : myTempList){
-
-                        if (item2.getSummary().substring(0,3)== nameOfPrefix) {
-
-                            nameDeveloper = item2.getAssignee().getName()
-
-                        }
-                    }
-                }
-
-
-
-            }
-
-            setCustomFieldValueUserPicker(issue,nameDeveloper,getCustomField(customFieldNameDeveloper))
-
-
-            //Idea: add this issue to the corresponding sprint
-            //still to do
+            setDeveloperNameForIssue(issue,hp)
 
 
         }
+
+
+        if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement){
+
+            //get the user story based on link type "validates" and set .developername
+                def  story = hp.getStoryFromRequirement(issue)
+
+            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
+
+            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
+
+
+            //set the workflowstatus based on customfield  .TestStatus
+
+            setWokflowStatusForRequirement(issue,hp)
+
+        }
+
+
+        if(issue.getIssueTypeObject().getName() == issueTypeNameTestCase){
+
+
+            //link testcase with requirement
+
+
+            def origin = hp.getCustomFieldValue(issue,customfieldNameTestCaseOrigin)
+
+            if (origin == "HP-ALM"){
+
+                def requirementID = hp.getCustomFieldValue(issue,customFieldNameRequirementID)
+                hp.linkIssue(issue,hp.getIssueByKey(requirementID),"Tests")
+            }
+
+
+            //set .Release and .Sprint
+            def story = hp.getStoryFromTestcase(issue)
+
+            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
+
+            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
+
+
+            //set AlmSubject depending of origin
+            if(origin != "HP-ALM" ){
+
+                // use the value build in jira
+                hp.setLabelCustomField(issue, hp.getAlmSubject(issue,story,hp),customFieldNameAlmSubject)
+            }
+
+            if(origin == "HP-ALM"){
+                // use the value with origin HP
+               hp.setLabelCustomField(issue, hp.getCustomFieldValue(issue,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
+            }
+        }
+
+
 
     }
 
@@ -2069,58 +1535,6 @@ def handleIssueUpdateAndAssignEvents(Issue issue, Category log){
 
 
 }
-
-
-def handleIssueTypeOrder(Issue issue){
-
-    //** customizing **
-
-    def issueTypeOrder = "Order"
-    def customFieldOrder = ".Order"
-
-    def orderId = "09071972"//issue.getSummary()
-    def issueType = issue.getIssueTypeObject().getName()
-    def issues
-
-    if(issueType == issueTypeOrder){
-
-        issues = selectIssues(issue,orderId,customFieldOrder)
-    }
-
-    for (Issue item : issues){
-
-        addSubTask(issue,item.getKey(),item.getSummary(),item.getKey()+": "+ item.getSummary())
-    }
-
-    println ""
-
-
-}
-
-def selectIssues(Issue issue, String orderId, String customFieldOrder){
-
-    def query = ""
-    def queryResult
-    def issues = new HashSet<Issue>()
-
-    query = customFieldOrder + "= \"" + orderId + "\""
-
-
-    queryResult =getIssuesByQuery(issue,query).getIssues()
-
-
-
-    //we need the IssueManager in order to create the issue of the the result of the query
-    IssueManager issueManager = ComponentAccessor.getIssueManager()
-
-    for(Issue item : queryResult){
-
-        issues.add(issueManager.getIssueObject(item.getId()))
-    }
-
-    return issues
-}
-
 
 
 // READ ME:
@@ -2161,11 +1575,16 @@ def Category log = Category.getInstance("com.onresolve.jira.groovy")
 log.setLevel(org.apache.log4j.Level.OFF)
 
 
-//------
 
-handleIssueUpdateAndAssignEvents(getCurrentIssue("EV"),log)
 
-//handleIssueTypeOrder(getCurrentIssue("EV"))
+
+//-----------------------------------------------
+
+hp = new Helper()
+
+main(getCurrentIssue("EV"),log,hp)
+
+
 
 
 

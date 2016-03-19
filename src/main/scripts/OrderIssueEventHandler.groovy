@@ -10,6 +10,27 @@ def handleOrderIssueWorkflowEvent(Issue issue, Helper hp){
 
     hp.addComment(issue,issue.getKey())
 
+
+    //** customizing **
+
+    def issueTypeOrder = "Order"
+    def customFieldOrder = ".Order"
+
+    def orderId = "09071972"//issue.getSummary()
+    def issueType = issue.getIssueTypeObject().getName()
+    def issues
+
+    if(issueType == issueTypeOrder){
+
+        issues = selectIssues(issue,orderId,customFieldOrder)
+    }
+
+    for (Issue item : issues){
+        hp.addSubTask(issue,item.getKey(),item.getSummary(),item.getKey()+": "+ item.getSummary())
+    }
+
+    println ""
+
 }
 
 
@@ -29,6 +50,7 @@ def Issue getCurrentIssue(String flag){
 
     return myIssue
 }
+
 
 //
 
