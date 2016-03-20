@@ -1540,6 +1540,10 @@ def main(Issue issue, Category log, Helper hp){
 
             //set .Release and .Sprint
             def story = hp.getStoryFromTestcase(issue)
+            log.info("hp.getStoryFromTestcase(issue)  " + "story = " +story +  "issue = " + issue)
+
+            def test3 = hp.getCustomFieldValue(story,customFieldNameRelease)
+            log.info("hp.getCustomFieldValue(story,customFieldNameRelease = "+ test3)
 
             hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
 

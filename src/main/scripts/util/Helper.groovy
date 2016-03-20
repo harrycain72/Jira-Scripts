@@ -2133,7 +2133,7 @@ class Helper {
         def Relates = "10003"
         def Cloners = "10001"
         def Duplicate = "10002"
-        def Tests = "10301"
+        def Tests = "10500"  // 10500 in PROD 10301 in TEST
         def Validates = "10300"
 
         def user = getCurrentUser()
