@@ -849,15 +849,17 @@ class Helper {
     //The Subject is necessary to tell Tasktop Sync where (in the ALM testplan tree) to store the test cases
     //Example: EAP_R16.2JUL_SPRINT_1_TEAM_A
 
-    def getAlmSubject(Issue issue, Issue story, Helper hp){
+    def getAlmSubject(Issue issue, Helper hp){
 
-        def storyIssue = story
+        def customFieldNameRelease = ".Release"
+        def customFieldNameSprint = ".Sprint"
+        def customFieldNameITApp_Module = ".IT-App_Module"
 
-        def sprintName = getSprintName(storyIssue)
+        def sprintName = getCustomFieldValue(issue,customFieldNameSprint)
 
-        def releaseName = getFirstReleaseName(storyIssue)
+        def releaseName = getCustomFieldValue(issue,customFieldNameRelease)
 
-        def application_module = getCustomFieldValue(storyIssue,".IT-App_Module")
+        def application_module = getCustomFieldValue(issue,customFieldNameITApp_Module)
 
 
 
@@ -2094,7 +2096,7 @@ class Helper {
     }
 
 
-    def getStoryFromTestcase(Issue testcase){
+    def getStoryFromTestcase(Issue testcase,Category log){
 
         def size
 
