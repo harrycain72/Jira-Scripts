@@ -1148,17 +1148,34 @@ def setWokflowStatusForRequirement(Issue issue,Helper hp){
     //To Do = 11
     //DONE = 31
 
-    if(testStatus == "in progress"){
-        hp.setWorkflowTransition(issue,21)
-    }
-
-    else if(testStatus == "to do"){
+    if(testStatus == "Failed"){
         hp.setWorkflowTransition(issue,11)
     }
 
-    else if(testStatus == "done"){
+    else if(testStatus == "Blocked"){
+        hp.setWorkflowTransition(issue,21)
+    }
+
+    else if(testStatus == "No Run"){
         hp.setWorkflowTransition(issue,31)
     }
+
+    else if(testStatus == "Not Completed"){
+        hp.setWorkflowTransition(issue,41)
+    }
+
+    else if(testStatus == "Not Covered"){
+        hp.setWorkflowTransition(issue,51)
+    }
+
+    else if(testStatus == "Passed"){
+        hp.setWorkflowTransition(issue,61)
+    }
+
+    else if(testStatus == "Flagged for deletion"){
+        hp.setWorkflowTransition(issue,71)
+    }
+
 
     else {
         println ""
@@ -1170,7 +1187,8 @@ def main(Issue issue, Category log, Helper hp){
 
 
 
-    log.debug("Entering handleIssueUpdateAndAssignEvents() ")
+    log.info("Entering handleIssueUpdateAndAssignEvents() ")
+    hp.showLinkTypes(log)
 
 
     //begin customizing
@@ -1180,9 +1198,9 @@ def main(Issue issue, Category log, Helper hp){
     def customFieldNameSprintAndReleaseNames = ".Sprints"
     def customFieldNameDeveloper = ".Developer"
     def customFieldNameAlmSubject = ".Alm_Subject"
-    def customFieldNameStoryID = ".StoryID"
+    def customFieldNameStoryID = ".Story-ID"
     def customFieldNameITApp_Module = ".IT-App_Module"
-    def customFieldNameRequirementID = ".RequirementID"
+    def customFieldNameRequirementID = ".Requirement-ID"
     def customfieldNameTestCaseOrigin = ".TestCaseOrigin"
     def customfieldNameAlmSubjectHP = ".ALM_Subject_HP"
     def customfieldNameTestStatus = ".TestStatus"
@@ -1410,24 +1428,38 @@ def main(Issue issue, Category log, Helper hp){
                 //update .release and .sprint
                 for(Issue issue1 : hp.getAllRequirementTestCasesBugForStory(issue)){
 
+                    def value = hp.getCustomFieldValue(issue,customFieldNameITApp_Module)
 
-                    hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameITApp_Module)),customFieldNameITApp_Module)
+                    if(value == ""){
+                        hp.setLabelCustomField(issue1,hp.getCustomFieldValue(issue,customFieldNameITApp_Module),customFieldNameITApp_Module)
+                    }
+
+                    else if (value != ""){
+                        hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameITApp_Module)),customFieldNameITApp_Module)
+
+                    }
+
+
 
 
                     if(issue1.getIssueTypeObject().getName() == issueTypeNameTestCase){
 
                         def origin = hp.getCustomFieldValue(issue1,customfieldNameTestCaseOrigin)
 
+                        if (origin == null) {
+                            origin = ""
+                        }
+
                         //set AlmSubject depending of origin
                         if(origin != "HP-ALM" ){
-
+                        def test3 = hp.getAlmSubject(issue1,issue,hp)
                             // use the value build in jira
-                            hp.setLabelCustomField(issue, hp.getAlmSubject(issue,story,hp),customFieldNameAlmSubject)
+                            hp.setLabelCustomField(issue1, hp.getAlmSubject(issue1,issue,hp),customFieldNameAlmSubject)
                         }
 
                         if(origin == "HP-ALM"){
                             // use the value with origin HP
-                            hp.setLabelCustomField(issue, hp.getCustomFieldValue(issue,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
+                            hp.setLabelCustomField(issue1, hp.getCustomFieldValue(issue1,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
                         }
 
 
@@ -1572,7 +1604,7 @@ def main(Issue issue, Category log, Helper hp){
 //logging
 def Category log = Category.getInstance("com.onresolve.jira.groovy")
 
-log.setLevel(org.apache.log4j.Level.OFF)
+log.setLevel(org.apache.log4j.Level.INFO)
 
 
 

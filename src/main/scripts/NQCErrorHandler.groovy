@@ -448,6 +448,6 @@ hp = new Helper()
 
 //main(getCurrentIssue("EV"),hp)
 
-hp.setWorkflowTransition(getCurrentIssue("EV"),getCurrentUser())
+//hp.setWorkflowTransition(getCurrentIssue("EV"),getCurrentUser())
 
 
