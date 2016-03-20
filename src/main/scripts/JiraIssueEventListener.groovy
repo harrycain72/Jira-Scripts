@@ -1494,6 +1494,7 @@ def main(Issue issue, Category log, Helper hp){
             setReleaseSprint(issue,hp)
 
 
+
         }
 
 
