@@ -142,11 +142,18 @@ class Helper {
     def getCustomFieldValue(Issue issue, String myCustomField) {
 
         def cfm
+        def value
 
         cfm = ComponentAccessor.getCustomFieldManager()
 
         CustomField customField = cfm.getCustomFieldObjectByName(myCustomField);
-        return  (String)customField.getValue(issue);
+        value = (String)customField.getValue(issue)
+
+        if (value == null) {
+            value = ""
+        }
+
+        return value
 
     }
 
@@ -855,7 +862,7 @@ class Helper {
 
 
         //we only have to remove the brackets if a value in the field ".IT-App_Module" is found
-        if(application_module != null) {
+        if(application_module != null && application_module != "") {
 
             //Unfortunately the value from a customfield is within []
             //Therefore these two brackets have to be removed
@@ -2150,6 +2157,26 @@ class Helper {
 
     }
 
+    def showLinkTypes(Category log){
 
+
+
+
+         def issueLinkTypeManager = ComponentAccessor.getComponentOfType(IssueLinkTypeManager.class)
+
+         def issueLinkTypes = issueLinkTypeManager.getIssueLinkTypes()
+
+         for (IssueLinkType linkType :issueLinkTypes){
+
+
+                 def name = linkType.getName()
+                     log.info("linkTypeName = " + name)
+                 def id = linkType.getId()
+                     log.info("linkTypeID = " + id)
+         }
+
+
+
+    }
 
 }
