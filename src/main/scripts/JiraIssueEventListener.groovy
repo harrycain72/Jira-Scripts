@@ -1188,7 +1188,7 @@ def main(Issue issue, Category log, Helper hp){
 
 
     log.info("Entering handleIssueUpdateAndAssignEvents() ")
-    hp.showLinkTypes(log)
+    //hp.showLinkTypes(log)
 
 
     //begin customizing
@@ -1537,24 +1537,24 @@ def main(Issue issue, Category log, Helper hp){
                 hp.linkIssue(issue,hp.getIssueByKey(requirementID),"Tests")
             }
 
-
+            // done by EXOCERT
             //set .Release and .Sprint
-            def story = hp.getStoryFromTestcase(issue)
-            log.info("hp.getStoryFromTestcase(issue)  " + "story = " +story +  "issue = " + issue)
+            //def story = hp.getStoryFromTestcase(issue,log)
+            //log.info("hp.getStoryFromTestcase(issue)  " + "story = " +story +  "issue = " + issue)
 
-            def test3 = hp.getCustomFieldValue(story,customFieldNameRelease)
-            log.info("hp.getCustomFieldValue(story,customFieldNameRelease = "+ test3)
+            //def test3 = hp.getCustomFieldValue(story,customFieldNameRelease)
+            //log.info("hp.getCustomFieldValue(story,customFieldNameRelease = "+ test3)
 
-            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
+            //hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
 
-            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
+            //hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
 
 
             //set AlmSubject depending of origin
             if(origin != "HP-ALM" ){
 
                 // use the value build in jira
-                hp.setLabelCustomField(issue, hp.getAlmSubject(issue,story,hp),customFieldNameAlmSubject)
+                hp.setLabelCustomField(issue, hp.getAlmSubject(issue,hp),customFieldNameAlmSubject)
             }
 
             if(origin == "HP-ALM"){
