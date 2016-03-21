@@ -1317,14 +1317,15 @@ def main(Issue issue, Category log, Helper hp){
                 //update .release and .sprint
                 for(Issue issue1 : hp.getAllRequirementTestCasesBugForStory(issue)){
 
-                    hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameRelease)),customFieldNameRelease)
-                    hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameSprint)),customFieldNameSprint)
+                    //hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameRelease)),customFieldNameRelease)
+                    //hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameSprint)),customFieldNameSprint)
+
 
 
                     if(issue1.getIssueTypeObject().getName() == issueTypeNameTestCase){
 
 
-                        hp.setLabelCustomField(issue1, hp.getAlmSubject(issue1,issue,hp),customFieldNameAlmSubject)
+                       // hp.setLabelCustomField(issue1, hp.getAlmSubject(issue1,hp),customFieldNameAlmSubject)
                     }
                 }
 
@@ -1452,14 +1453,14 @@ def main(Issue issue, Category log, Helper hp){
 
                         //set AlmSubject depending of origin
                         if(origin != "HP-ALM" ){
-                        def test3 = hp.getAlmSubject(issue1,issue,hp)
+                        def test3 = hp.getAlmSubject(issue1,hp)
                             // use the value build in jira
-                            hp.setLabelCustomField(issue1, hp.getAlmSubject(issue1,issue,hp),customFieldNameAlmSubject)
+                        //    hp.setLabelCustomField(issue1, hp.getAlmSubject(issue1,hp),customFieldNameAlmSubject)
                         }
 
                         if(origin == "HP-ALM"){
                             // use the value with origin HP
-                            hp.setLabelCustomField(issue1, hp.getCustomFieldValue(issue1,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
+                            //hp.setLabelCustomField(issue1, hp.getCustomFieldValue(issue1,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
                         }
 
 
@@ -1492,6 +1493,8 @@ def main(Issue issue, Category log, Helper hp){
         if(issue.getIssueTypeObject().getName() == issueTypeNameStory){
 
             setReleaseSprint(issue,hp)
+
+            //hp.setLabelCustomField(issue, hp.getAlmSubject(issue,hp),customFieldNameAlmSubject)
 
 
 
@@ -1532,35 +1535,28 @@ def main(Issue issue, Category log, Helper hp){
 
             def origin = hp.getCustomFieldValue(issue,customfieldNameTestCaseOrigin)
 
+
             if (origin == "HP-ALM"){
 
                 def requirementID = hp.getCustomFieldValue(issue,customFieldNameRequirementID)
                 hp.linkIssue(issue,hp.getIssueByKey(requirementID),"Tests")
-            }
 
-            // done by EXOCERT
+
+
             //set .Release and .Sprint
-            //def story = hp.getStoryFromTestcase(issue,log)
-            //log.info("hp.getStoryFromTestcase(issue)  " + "story = " +story +  "issue = " + issue)
+            def story = hp.getStoryFromTestcase(issue,log)
+            log.info("hp.getStoryFromTestcase(issue)  " + "story = " +story +  "issue = " + issue)
 
-            //def test3 = hp.getCustomFieldValue(story,customFieldNameRelease)
-            //log.info("hp.getCustomFieldValue(story,customFieldNameRelease = "+ test3)
+            def test3 = hp.getCustomFieldValue(story,customFieldNameRelease)
+            log.info("hp.getCustomFieldValue(story,customFieldNameRelease = "+ test3)
 
-            //hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
+            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
 
-            //hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
+            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
 
+            // use the value with origin HP
+            hp.setLabelCustomField(issue, hp.getCustomFieldValue(issue,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
 
-            //set AlmSubject depending of origin
-            if(origin != "HP-ALM" ){
-
-                // use the value build in jira
-                hp.setLabelCustomField(issue, hp.getAlmSubject(issue,hp),customFieldNameAlmSubject)
-            }
-
-            if(origin == "HP-ALM"){
-                // use the value with origin HP
-               hp.setLabelCustomField(issue, hp.getCustomFieldValue(issue,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
             }
         }
 
