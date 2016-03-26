@@ -1136,11 +1136,13 @@ def setDeveloperNameForIssue(Issue issue, Helper hp){
     }
 }
 
-def setWokflowStatusForRequirement(Issue issue,Helper hp){
+def setWorkflowStatusForRequirement(Issue issue, Helper hp, String environment){
 
+
+    //.TestStatus comes fromHP-ALM
     def customfieldNameTestStatus = ".TestStatus"
-    // set workflow transition
 
+    // set workflow transition
     def testStatus = hp.getCustomFieldValue(issue,customfieldNameTestStatus)
 
     //set workflowtransition using the transition id
@@ -1148,42 +1150,100 @@ def setWokflowStatusForRequirement(Issue issue,Helper hp){
     //To Do = 11
     //DONE = 31
 
-    if(testStatus == "Failed"){
-        hp.setWorkflowTransition(issue,11)
+
+    if(environment == "PROD"){
+
+
+
+            if(testStatus == "Failed"){
+                hp.setWorkflowTransition(issue,11)
+            }
+
+            else if(testStatus == "Blocked"){
+                hp.setWorkflowTransition(issue,21)
+            }
+
+            else if(testStatus == "No Run"){
+                hp.setWorkflowTransition(issue,31)
+            }
+
+            else if(testStatus == "Not Completed"){
+                hp.setWorkflowTransition(issue,41)
+            }
+
+            else if(testStatus == "Not Covered"){
+                hp.setWorkflowTransition(issue,51)
+            }
+
+            else if(testStatus == "Passed"){
+                hp.setWorkflowTransition(issue,61)
+            }
+
+            else if(testStatus == "Flagged for deletion"){
+                hp.setWorkflowTransition(issue,71)
+            }
+
     }
 
-    else if(testStatus == "Blocked"){
-        hp.setWorkflowTransition(issue,21)
-    }
-
-    else if(testStatus == "No Run"){
-        hp.setWorkflowTransition(issue,31)
-    }
-
-    else if(testStatus == "Not Completed"){
-        hp.setWorkflowTransition(issue,41)
-    }
-
-    else if(testStatus == "Not Covered"){
-        hp.setWorkflowTransition(issue,51)
-    }
-
-    else if(testStatus == "Passed"){
-        hp.setWorkflowTransition(issue,61)
-    }
-
-    else if(testStatus == "Flagged for deletion"){
-        hp.setWorkflowTransition(issue,71)
-    }
+    if(environment == "DEV"){
 
 
-    else {
-        println ""
+
+        if(testStatus == "Failed"){
+            hp.setWorkflowTransition(issue,11)
+        }
+
+        else if(testStatus == "Blocked"){
+            hp.setWorkflowTransition(issue,21)
+        }
+
+        else if(testStatus == "No Run"){
+            hp.setWorkflowTransition(issue,31)
+        }
+
+        else if(testStatus == "Not Completed"){
+            hp.setWorkflowTransition(issue,41)
+        }
+
+        else if(testStatus == "Not Covered"){
+            hp.setWorkflowTransition(issue,51)
+        }
+
+        else if(testStatus == "Passed"){
+            hp.setWorkflowTransition(issue,61)
+        }
+
+        else if(testStatus == "Flagged for deletion"){
+            hp.setWorkflowTransition(issue,71)
+        }
+
     }
 }
 
 
-def main(Issue issue, Category log, Helper hp){
+
+def linkIssues(Issue issue, Helper hp, String environment){
+
+    //Beginn customizing
+    def customFieldNameRequirementID = ".Requirement-ID"
+    //End customizing
+
+    def issueIDsToLink = hp.getCustomFieldValue(issue,customFieldNameRequirementID)
+
+    def issueIDs = []
+
+    issueIDs = hp.retrieveTokens(issueIDsToLink,",")
+
+
+    for(String  issueKey : issueIDs){
+
+        hp.linkIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment)
+
+    }
+}
+
+
+def main(Issue issue, Category log, Helper hp, String environment){
 
 
 
@@ -1210,6 +1270,10 @@ def main(Issue issue, Category log, Helper hp){
     def issueTypeNameRequirement = "Requirement"
     def issueTypeNameTestCase = "Test Case"
     def issueTypeNameBug = "Bug"
+    def issueTypeNameBusinessRequest = "Business Request"
+    def constantJIRA = "JIRA"
+    def constantHPALM = "HP-ALM"
+
 
 
 
@@ -1217,7 +1281,7 @@ def main(Issue issue, Category log, Helper hp){
     def issueType = issue.getIssueTypeObject().getName()
 
     // These names should be standard in JIRA and not change from release to release
-    def listOfFieldNames = ["description","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module",".TestStatus"]
+    def listOfFieldNames = ["description","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module",".TestStatus",".Release",".Sprint"]
     def searchResult
     def field
 
@@ -1303,9 +1367,6 @@ def main(Issue issue, Category log, Helper hp){
                 //retrieve sprint and fixversion and copy the values to the customfields .Release and .Alm_Subject and .Sprint
                 setReleaseSprint(issue,hp)
 
-
-
-
                 //if the release is changed but the sprint remains - which should not really be the case
                 //then we must make sure, that this change is also available for the relevant business requests
 
@@ -1314,23 +1375,37 @@ def main(Issue issue, Category log, Helper hp){
                 hp.setReleaseAndSprintNamesInPKE(issue,customFieldNameSprintAndReleaseNames)
 
 
-                //update .release and .sprint
-                for(Issue issue1 : hp.getAllRequirementTestCasesBugForStory(issue)){
-
-                    //hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameRelease)),customFieldNameRelease)
-                    //hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameSprint)),customFieldNameSprint)
+            }
 
 
 
-                    if(issue1.getIssueTypeObject().getName() == issueTypeNameTestCase){
+
+        }
+
+        if (searchResult != null && field == ".Release" || field == ".Sprint" ){
+
+            if(issueType == issueTypeNameTestCase){
 
 
-                       // hp.setLabelCustomField(issue1, hp.getAlmSubject(issue1,hp),customFieldNameAlmSubject)
-                    }
+                //determine the origin of the testcase. We differ HP-ALM and JIRA as source for test cases.
+                //This value is set via Exocert plugin or via Tasktop Sync
+                def origin = hp.getCustomFieldValue(issue,customfieldNameTestCaseOrigin)
+
+
+                //True for testcase created in Jira
+                if (origin ==  constantJIRA){
+
+                    //handling of  .ALM_subject
+                    //ALM subject is where the testcase is stored within HP ALM
+                    def storyKey = hp.getCustomFieldValue(issue,customFieldNameStoryID)
+
+                    def almsubject = hp.getAlmSubject(hp.getIssueByKey(storyKey))
+
+                    // set .ALM_subject
+                    hp.setLabelCustomField(issue,almsubject,customFieldNameAlmSubject)
                 }
 
             }
-
 
 
 
@@ -1347,8 +1422,8 @@ def main(Issue issue, Category log, Helper hp){
 
         if (searchResult != null && field == ".TestStatus"){
 
-            //set the workflowstatus based on customfield  .TestStatus
-            setWokflowStatusForRequirement(issue,hp)
+            //set the workflow status based on customfield  .TestStatus
+            setWorkflowStatusForRequirement(issue,hp)
 
         }
 
@@ -1423,63 +1498,38 @@ def main(Issue issue, Category log, Helper hp){
         if (searchResult != null && field == ".IT-App_Module"){
 
 
-            if(issueType == issueTypeNameStory){
+            if(issueType == issueTypeNameTestCase){
+
+                //determine the origin of the testcase. We differ HP-ALM and JIRA as source for test cases.
+                //This value is set via Exocert plugin or via Tasktop Sync
+                def origin = hp.getCustomFieldValue(issue,customfieldNameTestCaseOrigin)
 
 
-                //update .release and .sprint
-                for(Issue issue1 : hp.getAllRequirementTestCasesBugForStory(issue)){
+                //True for testcase created in Jira
+                if (origin ==  constantJIRA){
 
-                    def value = hp.getCustomFieldValue(issue,customFieldNameITApp_Module)
+                    //handling of  .ALM_subject
+                    //ALM subject is where the testcase is stored within HP ALM
+                    def storyKey = hp.getCustomFieldValue(issue,customFieldNameStoryID)
 
-                    if(value == ""){
-                        hp.setLabelCustomField(issue1,hp.getCustomFieldValue(issue,customFieldNameITApp_Module),customFieldNameITApp_Module)
-                    }
+                    def almsubject = hp.getAlmSubject(hp.getIssueByKey(storyKey))
 
-                    else if (value != ""){
-                        hp.setLabelCustomField(issue1,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(issue,customFieldNameITApp_Module)),customFieldNameITApp_Module)
-
-                    }
-
-
-
-
-                    if(issue1.getIssueTypeObject().getName() == issueTypeNameTestCase){
-
-                        def origin = hp.getCustomFieldValue(issue1,customfieldNameTestCaseOrigin)
-
-                        if (origin == null) {
-                            origin = ""
-                        }
-
-                        //set AlmSubject depending of origin
-                        if(origin != "HP-ALM" ){
-                        def test3 = hp.getAlmSubject(issue1,hp)
-                            // use the value build in jira
-                        //    hp.setLabelCustomField(issue1, hp.getAlmSubject(issue1,hp),customFieldNameAlmSubject)
-                        }
-
-                        if(origin == "HP-ALM"){
-                            // use the value with origin HP
-                            //hp.setLabelCustomField(issue1, hp.getCustomFieldValue(issue1,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
-                        }
-
-
-
-                    }
-
+                    // set .ALM_subject
+                    hp.setLabelCustomField(issue,almsubject,customFieldNameAlmSubject)
                 }
 
             }
 
-            else {
-                // nothing to do
-            }
 
 
         }
 
 
+        if(issue.getIssueTypeObject().getName() == issueTypeNameBusinessRequest){
 
+            hp.setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames)
+
+        }
     }
 
 
@@ -1494,73 +1544,85 @@ def main(Issue issue, Category log, Helper hp){
 
             setReleaseSprint(issue,hp)
 
-            //hp.setLabelCustomField(issue, hp.getAlmSubject(issue,hp),customFieldNameAlmSubject)
-
-
-
         }
 
 
-        //set the .DeveloperName as assigned to subtask with prefix DEV
-        if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement || issueTypeNameTestCase || issueTypeNameBug){
 
-            setDeveloperNameForIssue(issue,hp)
-
-
-        }
 
 
         if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement){
 
-            //get the user story based on link type "validates" and set .developername
-                def  story = hp.getStoryFromRequirement(issue)
 
-            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
-
-            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
-
-
-            //set the workflowstatus based on customfield  .TestStatus
-
-            setWokflowStatusForRequirement(issue,hp)
+            //set the workflow status based on customfield  .TestStatus
+            setWorkflowStatusForRequirement(issue,hp,environment)
 
         }
 
 
         if(issue.getIssueTypeObject().getName() == issueTypeNameTestCase){
 
-
-            //link testcase with requirement
-
-
+            //determine the origin of the testcase. We differ HP-ALM and JIRA as source for test cases.
+            //This value is set via Exocert plugin or via Tasktop Sync
             def origin = hp.getCustomFieldValue(issue,customfieldNameTestCaseOrigin)
 
 
-            if (origin == "HP-ALM"){
+            //True for testcase created in Jira
+            if (origin ==  constantJIRA){
 
-                def requirementID = hp.getCustomFieldValue(issue,customFieldNameRequirementID)
-                hp.linkIssue(issue,hp.getIssueByKey(requirementID),"Tests")
+                //handling of  .ALM_subject
+                //ALM subject is where the testcase is stored within HP ALM
+                def storyKey = hp.getCustomFieldValue(issue,customFieldNameStoryID)
+
+                def almsubject = hp.getAlmSubject(hp.getIssueByKey(storyKey))
+
+                // set .ALM_subject
+                hp.setLabelCustomField(issue,almsubject,customFieldNameAlmSubject)
+            }
+
+
+            //True for testcase created in HP-ALM
+            if (origin == constantHPALM){
+
+                //link all requirements as defined in HP-ALM via UploadExcel
+                linkIssues(issue,hp,environment)
 
 
 
-            //set .Release and .Sprint
-            def story = hp.getStoryFromTestcase(issue,log)
-            log.info("hp.getStoryFromTestcase(issue)  " + "story = " +story +  "issue = " + issue)
+                //set .Release and .Sprint
+                def story = hp.getStoryFromTestcase(issue,log)
 
-            def test3 = hp.getCustomFieldValue(story,customFieldNameRelease)
-            log.info("hp.getCustomFieldValue(story,customFieldNameRelease = "+ test3)
+                hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
 
-            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
+                hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
 
-            hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
+                // set .ALM_subject
+                // use the value with origin HP
+                hp.setLabelCustomField(issue, hp.getCustomFieldValue(issue,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
 
-            // use the value with origin HP
-            hp.setLabelCustomField(issue, hp.getCustomFieldValue(issue,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
+                //retrieve and set .ITApp_Module
+                hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameITApp_Module)),customFieldNameITApp_Module)
+
+                //retrieve and set .Story-ID
+                hp.setCustomFieldValue(issue,story.getKey(),hp.getCustomField(customFieldNameStoryID))
+
 
             }
         }
 
+                //set the .DeveloperName as assigned to subtask with prefix DEV
+            if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement || issueTypeNameTestCase || issueTypeNameBug){
 
+                 setDeveloperNameForIssue(issue,hp)
+
+            }
+
+
+
+        if(issue.getIssueTypeObject().getName() == issueTypeNameBusinessRequest){
+
+            hp.setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames)
+
+        }
 
     }
 
@@ -1573,49 +1635,20 @@ def main(Issue issue, Category log, Helper hp){
 // READ ME:
 
 //The development is based on JIRA 6.4.8.
-//In case of an upgrade the script must also be upgraded. It is expected, that the code must be changed, as some methods do not exist anymore.
+//In case of an upgrade the script must also be upgraded. It is expected, that the code must be changed, as some methods do not exist anymore
 
 
-//The following methods MUST be customized according to the customizing of JIRA. The correct IssueTypeNames as defined in JIRA must be set
-//-------------------------------------------
-//addSubTask()
-//setReleaseAndSprintNamesInBusinessRequest()
-//setReleaseAndSprintNamesInPKE()
-//syncExternalLinks()
-//handleIssueUpdateAndAssignEvents()
-//configureSync
-//-------------------------------------------
 
-
-//The following customfields must be set in order to enable the script to work properly
-//  .Developer   .Sprint    .Release     .Sprints
-
-
-//In order to retrieve the developer name of a sub-task the prefix of this sub-task must be set to "DEV"
-//The prefix must be customized accordingly.
-
-//The script can be triggered by an event or by a workflow.
-//If the trigger should be an event, then the flag in the method getCurrentIssue() must be set to "EV"
-//If the trigger is a workflow, then the flag in teh method getCurrentIssue() must be set to "WV"
-
-
-//This is the method, that will be executed
-
-
-//logging
 def Category log = Category.getInstance("com.onresolve.jira.groovy")
 
-log.setLevel(org.apache.log4j.Level.INFO)
+log.setLevel(org.apache.log4j.Level.OFF)
 
-
-
-
-
-//-----------------------------------------------
+def constDEV = "DEV"
+def constPROD = "PROD"
 
 hp = new Helper()
 
-main(getCurrentIssue("EV"),log,hp)
+main(getCurrentIssue("EV"),log,hp,constDEV)
 
 
 
