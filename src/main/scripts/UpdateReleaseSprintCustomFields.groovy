@@ -95,7 +95,9 @@ def main(Issue issue, Helper hp) {
 
                     def stories = []
 
-                    def query = "project = demo and issuetype = Story and summary !~ \"REFRESH\""
+                    def description = issue.getDescription()
+
+                    def query = description + " and issuetype = Story and summary !~ \"REFRESH\""
                     stories = hp.getIssuesByQuery(query).getIssues()
 
 
