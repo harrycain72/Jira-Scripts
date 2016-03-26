@@ -10,6 +10,7 @@ import com.atlassian.jira.issue.Issue
 import com.atlassian.jira.issue.IssueManager
 import com.atlassian.jira.issue.ModifiedValue
 import com.atlassian.jira.issue.MutableIssue
+import com.atlassian.jira.issue.customfields.manager.OptionsManager
 import com.atlassian.jira.issue.fields.CustomField
 import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
 import com.atlassian.jira.issue.issuetype.IssueType
@@ -34,6 +35,7 @@ import com.opensymphony.workflow.WorkflowContext
 import com.atlassian.jira.project.Project
 import org.apache.log4j.Category
 
+import javax.rmi.CORBA.PortableRemoteObjectDelegate
 import java.sql.Connection
 import java.sql.Driver
 import java.sql.PreparedStatement
@@ -634,6 +636,21 @@ class Helper {
     }
 
 
+    def deleteLabelCustomField(Issue issue, String customFieldName){
+
+        def customFieldManager
+
+        LabelManager labelManager = ComponentAccessor.getComponent(LabelManager.class)
+
+        customFieldManager = ComponentAccessor.getCustomFieldManager()
+
+        CustomField customField = customFieldManager.getCustomFieldObjectByName(customFieldName)
+
+        labelManager.removeLabelsForCustomField(customField.getIdAsLong())
+
+    }
+
+
 
 // sets n labels in the standard JIRA labels field for a specific issue
     def setLabelJiraField(Issue issue, Set labels){
@@ -646,6 +663,9 @@ class Helper {
         issueManager.updateIssue(getCurrentUser(),mutableIssue,EventDispatchOption.DO_NOT_DISPATCH, false)
 
     }
+
+
+
 
 //replaces all blanks with _  . This is necessary as labels are not allowed to contain a blank.
     def removeBlanksFromLabels(Set labels){
@@ -720,8 +740,31 @@ class Helper {
     }
 
 
+    def retrieveTokens(String newValue,String delimitor){
+
+        Set<String> set = new HashSet<String>();
+
+        StringTokenizer st = new StringTokenizer(newValue,delimitor)
+
+        def myValue
+
+
+        while(st.hasMoreTokens()) {
+
+                myValue = st.nextToken()
+                set.add(myValue)
+        }
+
+
+
+
+        return set
+
+    }
+
+
 // This method retrieves the issue based on its key
-    def getIssueByKey(String myIssueKey){
+    def Issue getIssueByKey(String myIssueKey){
 
 
         Issue issue = ComponentAccessor.getIssueManager().getIssueByCurrentKey(myIssueKey);
@@ -849,7 +892,7 @@ class Helper {
     //The Subject is necessary to tell Tasktop Sync where (in the ALM testplan tree) to store the test cases
     //Example: EAP_R16.2JUL_SPRINT_1_TEAM_A
 
-    def getAlmSubject(Issue story, Helper hp){
+    def getAlmSubject(Issue story){
 
 
 
@@ -876,7 +919,7 @@ class Helper {
         //release and sprint are assigned to the issue
         if(sprintName != "-" && releaseName != "-"){
 
-            if(application_module != null ){
+            if(application_module != null && application_module !=""){
                 almSubject =  application_module + "_" + releaseName + "_" + sprintName
             }
 
@@ -890,7 +933,7 @@ class Helper {
         //only sprint is assigned to the issue
         if(sprintName != "-" && releaseName == "-") {
 
-            if(application_module != null) {
+            if(application_module != null && application_module !="") {
                 almSubject = application_module + "_---_" +  sprintName
             }
             else {
@@ -901,7 +944,7 @@ class Helper {
         //only release is assigned to the issue
         if(sprintName == "-" && releaseName != "-") {
 
-            if(application_module != null) {
+            if(application_module != null && application_module !="") {
                 almSubject = application_module + "_" + releaseName +"_---"
             }
             else {
@@ -912,11 +955,11 @@ class Helper {
         //neither release or sprint is assigned to the issue
         if(sprintName == "-" && releaseName == "-") {
 
-            if(application_module != null) {
+            if(application_module != null && application_module !="") {
                 almSubject = application_module+"_---_---"
             }
             else {
-                almSubject = releaseName + "---_---_---"
+                almSubject = "---_---_---"
             }
 
         }
@@ -2119,7 +2162,10 @@ class Helper {
 
     }
 
-    def linkIssue(Issue fromIssue, Issue toIssue, String linkTypeName){
+    def linkIssue(Issue fromIssue, Issue toIssue, String linkTypeName,String environment){
+
+        def constPROD = "PROD"
+        def constDEV = "DEV"
 
         def MutableIssue mutableIssue = (MutableIssue)fromIssue
 
@@ -2133,24 +2179,25 @@ class Helper {
         def Relates = "10003"
         def Cloners = "10001"
         def Duplicate = "10002"
-        def Tests = "10500"  // 10500 in PROD 10301 in TEST
+        def Tests_DEV = "10301"
+        def Tests_PROD = "10500"
         def Validates = "10300"
 
         def user = getCurrentUser()
 
 
-       /**
-            def issueLinkTypes = issueLinkTypeManager.getIssueLinkTypes()
-
-            for (IssueLinkType linkType :issueLinkTypes){
-                def name = linkType.getName()
-                def id = linkType.getId()
-            }
-        **/
 
         if(linkTypeName == "Tests"){
-            issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests),Long.valueOf(1), user)
+
+            if(environment == constPROD )
+            issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests_PROD),Long.valueOf(1), user)
+
+            else if (environment == constDEV){
+                issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests_DEV),Long.valueOf(1), user)
+            }
         }
+
+
 
 
         issueManager.updateIssue(user,mutableIssue,EventDispatchOption.ISSUE_UPDATED, false)
@@ -2175,6 +2222,72 @@ class Helper {
                      log.info("linkTypeID = " + id)
          }
 
+
+
+    }
+
+
+    def setReleaseSprint(Issue issue, Helper hp){
+
+
+        //begin customizing
+
+        def customFieldNameRelease = ".Release"
+        def customFieldNameSprint = ".Sprint"
+
+
+        //end customizing
+
+
+        def issueType = issue.getIssueTypeObject().getName()
+
+
+        //copy to --> .Release
+        hp.setLabelCustomField(issue,hp.getFirstReleaseName(issue),customFieldNameRelease)
+
+
+        //copy to --> .Sprint
+        hp.setLabelCustomField(issue,hp.getSprintName(issue),customFieldNameSprint)
+
+
+    }
+
+
+
+    def setCustomFieldValueOption(Issue myIssue, String mycustomFieldName, String myOption){
+
+
+
+        def optionsManager = ComponentAccessor.getComponentOfType(OptionsManager.class)
+        def customFieldManager = ComponentAccessor.getCustomFieldManager()
+
+        //gather the fields needed
+        def cf = customFieldManager.getCustomFieldObjectByName(mycustomFieldName)
+        def fieldconfig = cf.getRelevantConfig(myIssue)
+        def options = optionsManager.getOptions(fieldconfig)
+        def option = optionsManager.getOptions(fieldconfig).find {it.value == myOption}
+
+
+
+        if(myIssue instanceof DocumentIssueImpl){
+            myIssue = getIssueByKey(myIssue.getKey())
+        }
+
+        def MutableIssue myMutableIssue = (MutableIssue)myIssue
+
+
+        myMutableIssue.setCustomFieldValue(cf,option)
+
+
+        Map<String,ModifiedValue> modifiedFields = myMutableIssue.getModifiedFields()
+
+        FieldLayoutItem myFieldLayoutItem = ComponentAccessor.getFieldLayoutManager().getFieldLayout(myMutableIssue).getFieldLayoutItem(cf)
+
+        DefaultIssueChangeHolder myDefaultIssueChangeHolder = new DefaultIssueChangeHolder()
+
+        final ModifiedValue myModifiedValue = modifiedFields.get(cf.getId())
+
+        cf.updateValue(myFieldLayoutItem,myMutableIssue,myModifiedValue,myDefaultIssueChangeHolder)
 
 
     }
