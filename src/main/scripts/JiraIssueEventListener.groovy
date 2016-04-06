@@ -1281,7 +1281,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
     def issueType = issue.getIssueTypeObject().getName()
 
     // These names should be standard in JIRA and not change from release to release
-    def listOfFieldNames = ["description","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module",".TestStatus",".Release",".Sprint"]
+    def listOfFieldNames = [".inheritLinks","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module",".TestStatus",".Release",".Sprint"]
     def searchResult
     def field
 
@@ -1359,7 +1359,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
         //if the field "fix version" or sprint was updated then, we copy the value to the defined customfields
 
-        if (searchResult != null && field == "Fix Version" || field == "Sprint"){
+        else if (searchResult != null && field == "Fix Version" || field == "Sprint"){
 
 
             if(issue.getIssueTypeObject().getName() == issueTypeNameStory){
@@ -1382,7 +1382,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
         }
 
-        if (searchResult != null && field == ".Release" || field == ".Sprint" ){
+        else if (searchResult != null && field == ".Release" || field == ".Sprint" ){
 
             if(issueType == issueTypeNameTestCase){
 
@@ -1405,22 +1405,33 @@ def main(Issue issue, Category log, Helper hp, String environment){
                     hp.setLabelCustomField(issue,almsubject,customFieldNameAlmSubject)
                 }
 
+                else if (origin == constantHPALM){
+
+                    // set .ALM_subject
+                    // use the value with origin HP
+                    hp.setLabelCustomField(issue, hp.getCustomFieldValue(issue,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
+
+
+                }
+
             }
 
 
 
         }
 
-        if (searchResult != null && field == "description"){
+        else if (searchResult != null && field == ".inheritLinks"){
 
 
             //TODO refactoring necessary
             syncExternalLinks(issue)
 
+            def option = hp.setCustomFieldValueOption(issue,".inheritLinks","idle")
+
         }
 
 
-        if (searchResult != null && field == ".TestStatus"){
+        else if (searchResult != null && field == ".TestStatus"){
 
             //set the workflow status based on customfield  .TestStatus
             setWorkflowStatusForRequirement(issue,hp)
@@ -1429,7 +1440,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
 
-        if (searchResult != null && field == "assignee") {
+        else if (searchResult != null && field == "assignee") {
 
             def issueSummary = issue.getSummary()
             //we get the first 3 characters of the summary in order the check if it is a DEV task
@@ -1495,7 +1506,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
         //if the field "fix version" or sprint was updated then, we copy the value to the defined customfields
 
-        if (searchResult != null && field == ".IT-App_Module"){
+        else if (searchResult != null && field == ".IT-App_Module"){
 
 
             if(issueType == issueTypeNameTestCase){
@@ -1525,7 +1536,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
         }
 
 
-        if(issue.getIssueTypeObject().getName() == issueTypeNameBusinessRequest){
+        else if(issue.getIssueTypeObject().getName() == issueTypeNameBusinessRequest){
 
             hp.setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames)
 
@@ -1550,7 +1561,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
 
-        if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement){
+        else if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement){
 
 
             //set the workflow status based on customfield  .TestStatus
@@ -1559,7 +1570,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
         }
 
 
-        if(issue.getIssueTypeObject().getName() == issueTypeNameTestCase){
+        else if(issue.getIssueTypeObject().getName() == issueTypeNameTestCase){
 
             //determine the origin of the testcase. We differ HP-ALM and JIRA as source for test cases.
             //This value is set via Exocert plugin or via Tasktop Sync
@@ -1581,7 +1592,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
             //True for testcase created in HP-ALM
-            if (origin == constantHPALM){
+            else if (origin == constantHPALM){
 
                 //link all requirements as defined in HP-ALM via UploadExcel
                 linkIssues(issue,hp,environment)
@@ -1599,18 +1610,20 @@ def main(Issue issue, Category log, Helper hp, String environment){
                 // use the value with origin HP
                 hp.setLabelCustomField(issue, hp.getCustomFieldValue(issue,customfieldNameAlmSubjectHP),customFieldNameAlmSubject)
 
+                //retrieve and set .Story-ID
+                hp.setCustomFieldValue(issue,story.getKey(),hp.getCustomField(customFieldNameStoryID))
+
                 //retrieve and set .ITApp_Module
                 hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameITApp_Module)),customFieldNameITApp_Module)
 
-                //retrieve and set .Story-ID
-                hp.setCustomFieldValue(issue,story.getKey(),hp.getCustomField(customFieldNameStoryID))
+
 
 
             }
         }
 
                 //set the .DeveloperName as assigned to subtask with prefix DEV
-            if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement || issueTypeNameTestCase || issueTypeNameBug){
+            else if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement || issueTypeNameTestCase || issueTypeNameBug){
 
                  setDeveloperNameForIssue(issue,hp)
 
@@ -1618,7 +1631,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
 
-        if(issue.getIssueTypeObject().getName() == issueTypeNameBusinessRequest){
+        else if(issue.getIssueTypeObject().getName() == issueTypeNameBusinessRequest){
 
             hp.setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames)
 

@@ -16,7 +16,6 @@ import com.atlassian.jira.issue.fields.layout.field.FieldLayoutItem
 import com.atlassian.jira.issue.issuetype.IssueType
 import com.atlassian.jira.issue.label.LabelManager
 import com.atlassian.jira.issue.link.DefaultRemoteIssueLinkManager
-import com.atlassian.jira.issue.link.IssueLink
 import com.atlassian.jira.issue.link.IssueLinkType
 import com.atlassian.jira.issue.link.IssueLinkTypeManager
 import com.atlassian.jira.issue.link.RemoteIssueLink
@@ -35,7 +34,6 @@ import com.opensymphony.workflow.WorkflowContext
 import com.atlassian.jira.project.Project
 import org.apache.log4j.Category
 
-import javax.rmi.CORBA.PortableRemoteObjectDelegate
 import java.sql.Connection
 import java.sql.Driver
 import java.sql.PreparedStatement
@@ -614,12 +612,14 @@ class Helper {
         if(newValue !=""){
 
             def customFieldManager
+            def labelManager
+            def customField
 
-            LabelManager labelManager = ComponentAccessor.getComponent(LabelManager.class)
+            labelManager = ComponentAccessor.getComponent(LabelManager.class)
 
             customFieldManager = ComponentAccessor.getCustomFieldManager()
 
-            CustomField customField = customFieldManager.getCustomFieldObjectByName(customFieldName)
+            customField = customFieldManager.getCustomFieldObjectByName(customFieldName)
 
             
             //convert blanks in String to "_"
@@ -636,7 +636,7 @@ class Helper {
     }
 
 
-    def deleteLabelCustomField(Issue issue, String customFieldName){
+    def deleteLabelCustomField(String customFieldName){
 
         def customFieldManager
 
@@ -647,6 +647,8 @@ class Helper {
         CustomField customField = customFieldManager.getCustomFieldObjectByName(customFieldName)
 
         labelManager.removeLabelsForCustomField(customField.getIdAsLong())
+
+
 
     }
 
@@ -880,11 +882,17 @@ class Helper {
 //removes first and last character from a String
     def removeFirstAndLastCharacterFromString(String myString){
 
-        //remove last character
-        myString = myString.substring(0, myString.length() - 1)
 
-        //remove first character
-        myString = myString.substring(1)
+
+        if (myString != ""){
+            //remove last character
+            myString = myString.substring(0, myString.length() - 1)
+
+            //remove first character
+            myString = myString.substring(1)
+        }
+
+
 
         return myString
     }

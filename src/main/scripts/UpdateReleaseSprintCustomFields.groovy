@@ -2,7 +2,6 @@ import com.atlassian.jira.event.issue.IssueEvent
 import com.atlassian.jira.issue.DocumentIssueImpl
 import com.atlassian.jira.issue.Issue
 import util.Helper
-import com.atlassian.jira.project.Project
 
 /**
  * Created by roland on 25.03.16.
@@ -54,14 +53,15 @@ def main(Issue issue, Helper hp) {
 
     //end customizing
     def issueType = issue.getIssueTypeObject().getName()
+    def issueSummary = issue.getSummary()
 
     // These names should be standard in JIRA and not change from release to release
     def listOfFieldNames = [".refresh",".Release",".Sprint"]
     def searchResult
     def field
 
-    //only true if we have an update
-    if(issue.summary == "REFRESH") {
+    //This script only is relevant for issues with the name REFRESH in the summary
+    if(issueSummary == "REFRESH") {
 
         if (issue.created != issue.updated) {
 
@@ -95,31 +95,44 @@ def main(Issue issue, Helper hp) {
 
                     def stories = []
 
+
+                    //idea is to define in the description field the relevant project
+                    //i.e. project in (a,b)
                     def description = issue.getDescription()
 
                     def query = description + " and issuetype = Story and summary !~ \"REFRESH\""
+
                     stories = hp.getIssuesByQuery(query).getIssues()
+
+
 
 
                     for (Issue anIssue : stories) {
 
+                        def castedIssue
+
                         if (anIssue instanceof DocumentIssueImpl) {
-                            myIssue = hp.getIssueByKey(anIssue.getKey())
+                            castedIssue = hp.getIssueByKey(anIssue.getKey())
                         }
 
-                        hp.deleteLabelCustomField(anIssue, customFieldNameAlmSubject)
-                        hp.deleteLabelCustomField(anIssue, customFieldNameRelease)
-                        hp.deleteLabelCustomField(anIssue, customFieldNameSprint)
+                        else if (!anIssue instanceof  DocumentIssueImpl ){
+                            castedIssue = anIssue
+                        }
+
+                        hp.setLabelCustomField(castedIssue,"-",customFieldNameAlmSubject)
+                        hp.setLabelCustomField(castedIssue,"-",customFieldNameRelease)
+                        hp.setLabelCustomField(castedIssue,"-",customFieldNameSprint)
+
 
                         //retrieve sprint and fixversion and copy the values to the customfields .Release and .Alm_Subject and .Sprint
-                        hp.setReleaseSprint(anIssue, hp)
+                        hp.setReleaseSprint(castedIssue, hp)
 
                         //if the release is changed but the sprint remains - which should not really be the case
                         //then we must make sure, that this change is also available for the relevant business requests
 
-                        hp.setReleaseAndSprintNamesInBusinessRequest(anIssue, customFieldNameSprintAndReleaseNames)
+                        hp.setReleaseAndSprintNamesInBusinessRequest(castedIssue, customFieldNameSprintAndReleaseNames)
 
-                        hp.setReleaseAndSprintNamesInPKE(anIssue, customFieldNameSprintAndReleaseNames)
+                        hp.setReleaseAndSprintNamesInPKE(castedIssue, customFieldNameSprintAndReleaseNames)
 
                     }
 
@@ -133,6 +146,11 @@ def main(Issue issue, Helper hp) {
         def option = hp.setCustomFieldValueOption(issue,".refresh","None")
 
     }
+
+    else {
+
+    }
+
 }
 
 
