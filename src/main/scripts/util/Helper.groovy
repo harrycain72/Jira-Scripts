@@ -2300,4 +2300,46 @@ class Helper {
 
     }
 
+
+    def getStoryFromSubTask(Issue issue){
+
+        //get the user story based on link type "validates" and set .developername
+        def  myTempListOfStories =[]
+
+        def story
+
+        myTempListOfStories.addAll(getIssuesOfNetworkByIssueTypeAndLinkType(issue,"Story","1", "").getIssues())
+
+        if (myTempListOfStories.size() != null) {
+
+            //we should have only one story as parent of a sub task
+            return story = castToIssue(myTempListOfStories[0])
+        }
+    }
+
+
+    def getAllSubTasksForStory(Issue issue){
+
+        def issueTypeNameSubTasks = "Sub-task"
+
+        def castedIssuesOfTypeSubTask = []
+
+        // get all SubTasks for the story
+        def subTasks = getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypeNameSubTasks,"1","").getIssues()
+
+
+        //cast all issues
+        for(Issue item : subTasks){
+
+            def myCastedItem = castToIssue(item)
+
+            castedIssuesOfTypeSubTask.add(myCastedItem)
+
+        }
+
+
+        return castedIssuesOfTypeSubTask
+
+    }
+
 }

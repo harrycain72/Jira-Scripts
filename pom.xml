@@ -59,6 +59,12 @@
             <version>${mysql.version}</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>com.atlassian.jira</groupId>
+            <artifactId>jira-api</artifactId>
+            <version>${jira.version}</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <properties>
