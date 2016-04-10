@@ -1245,6 +1245,8 @@ def linkIssues(Issue issue, Helper hp, String environment){
 
 def main(Issue issue, Category log, Helper hp, String environment){
 
+    //just relevant for testing purposes in order to check the name of JIRA-fields
+    def test = event.getChangeLog().getRelated('ChildChangeItem')
 
 
     log.info("Entering handleIssueUpdateAndAssignEvents() ")
@@ -1286,11 +1288,13 @@ def main(Issue issue, Category log, Helper hp, String environment){
     def field
 
 
+
+
+
     //only true if we have an update
     if(issue.created != issue.updated){
 
-        //just relevant for testing purposes in order to check the name of JIRA-fields
-        def test = event.getChangeLog().getRelated('ChildChangeItem')
+
 
 
         // we loop over all field names, for which we want to check if an update has happened.
@@ -1335,7 +1339,9 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
                 // get all SubTasks for the story
 
-                def subTasks = hp.getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypeNameSubTasks,"1","").getIssues()
+                //def subTasks = hp.getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypeNameSubTasks,"1","").getIssues()
+
+                def subTasks = hp.getAllSubTasksForStory(issue)
 
                 //we need the IssueManager in order to create the issue of the the result of the query
                 IssueManager issueManager = ComponentAccessor.getIssueManager()
@@ -1447,6 +1453,23 @@ def main(Issue issue, Category log, Helper hp, String environment){
             def keyWord = issueSummary.substring(0,3)
 
 
+            //feature: sync story and subtask regarding the workflow
+            //update story wf in dependence of workflow of subtask
+            //objective: when at least one sub-task has the status in progress, then the story should also have this
+            //workflow status.
+
+            if(issueType == issueTypeNameSubTasks){
+
+                // get parent story
+
+                def story
+
+                story = hp.getStoryFromSubTask(issue)
+
+
+
+            }
+
 
 
             //we only copy the name of the developer if the subtasks begins witn prefix DEV
@@ -1548,7 +1571,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
     //we handle here the issue created event
-    // issue.created = issue.updated
+    // issue.created ==issue.updated
     else {
 
         if(issue.getIssueTypeObject().getName() == issueTypeNameStory){
