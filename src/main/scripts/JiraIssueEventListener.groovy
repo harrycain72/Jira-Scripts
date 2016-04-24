@@ -1276,6 +1276,21 @@ def main(Issue issue, Category log, Helper hp, String environment){
     def constantJIRA = "JIRA"
     def constantHPALM = "HP-ALM"
 
+    def issueTypeNameOrder = "Order"
+    def issueTypeNameOrderItem = "OrderItem"
+    def customFieldNameOrderId = ".Order-ID"
+    def customFieldNameOrderItemValue = ".OrderItemValue"
+    def customFieldNameOrderItemConfirmationValue = ".OrderItemConfirmationValue"
+    def customFieldNameOrderRefresh = ".OrderRefresh"
+    def customFieldNameOrderValue = ".OrderValue"
+    def customFieldNameOrderConfirmationValue = ".OrderConfirmationValue"
+    def customFieldNameExchangeFlag = ".ExchangeFlag"
+    def customFieldNameOrderEchangeValue = ".OrderExchangeValue"
+    def customFieldNameOrderItemExchangeValue = ".OrderItemExchangeValue"
+
+
+
+
 
 
 
@@ -1283,7 +1298,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
     def issueType = issue.getIssueTypeObject().getName()
 
     // These names should be standard in JIRA and not change from release to release
-    def listOfFieldNames = [".inheritLinks","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module",".TestStatus",".Release",".Sprint"]
+    def listOfFieldNames = [".OrderRefresh",".inheritLinks","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module",".TestStatus",".Release",".Sprint"]
     def searchResult
     def field
 
@@ -1435,6 +1450,244 @@ def main(Issue issue, Category log, Helper hp, String environment){
             def option = hp.setCustomFieldValueOption(issue,".inheritLinks","idle")
 
         }
+
+
+        else if (searchResult != null && field == ".OrderRefresh"){
+
+
+            //this logic is only valid if we are dealing with an issue of type Order
+            if(issueType == issueTypeNameOrder ){
+
+                def orderRefreshType = hp.getCustomFieldValue(issue,customFieldNameOrderRefresh)
+
+                if(orderRefreshType == "refresh"){
+
+
+                    //an issue of type order MUST have the POnr in the summary field
+                    //get the orderId of the current issue
+                    def orderId = issue.getSummary()
+
+
+                    //get the order items based on the orderId
+                    def orderItems = []
+
+                    orderItems = hp.selectOrderItems(issue,orderId,customFieldNameOrderId)
+
+
+                    //create the orderItems for the order
+
+                    for(Issue item : orderItems){
+
+
+                        hp.addSubTask(issue,issueTypeNameSubTasks,item.getKey(),item.getSummary(),item.getDescription(),environment,item)
+
+
+                    }
+
+
+
+                    def option = hp.setCustomFieldValueOption(issue,".OrderRefresh","idle")
+
+
+                }
+
+
+                else if(orderRefreshType == "recalculate"){
+
+                    def orderItems = []
+                    def orderItemValue
+                    def orderValue = 0
+                    def relatedIssue
+                    def statusRelatedIssue
+                    def orderItemConfirmationValue
+                    def orderConfirmationValue = 0.toDouble()
+                    def relatedIssueExchangeFlag
+                    def orderItemExchangeValue = 0.toDouble()
+                    def orderExchangeValue = 0.toDouble()
+
+
+                    orderItems = hp.getAllSubTasksForStory(issue)
+
+                    for(Issue item : orderItems){
+
+
+
+
+
+
+
+
+                        //calculate the order cofirmation value
+                        def issueList = []
+
+                        issueList = hp.getIssuesOfNetworkByLinkType(item,"1","relates_to").getIssues()
+
+                        relatedIssue = hp.castToIssue(issueList[0])
+
+                        statusRelatedIssue = relatedIssue.getStatusObject().getName()
+
+
+
+
+                        if(statusRelatedIssue == "Done"){
+
+                            //set the workflowstatus for the subtask to done == 31
+                            if(environment == "DEV"){
+                                hp.setWorkflowTransition(item,31)
+                            }
+
+                            else if(environment == "PROD"){
+                                hp.setWorkflowTransition(item,31)
+
+                            }
+
+
+                            //set orderItemConfirmationValue = orderItemValue for the orderitem
+
+                            def value = hp.getCustomFieldValue(item,customFieldNameOrderItemValue).toDouble()
+
+                            hp.setCustomFieldValue(item,value,hp.getCustomField(customFieldNameOrderItemConfirmationValue))
+
+                            orderItemConfirmationValue = hp.getCustomFieldValue(item,customFieldNameOrderItemConfirmationValue).toDouble()
+
+                            orderConfirmationValue = orderConfirmationValue + orderItemConfirmationValue
+                        }
+
+
+
+                        else if (statusRelatedIssue == "To Do"){
+                            hp.setCustomFieldValue(item,0.toDouble(),hp.getCustomField(customFieldNameOrderItemConfirmationValue))
+
+                            //set the workflowstatus for the subtask to "to do" == 11
+                            if(environment == "DEV"){
+                                hp.setWorkflowTransition(item,11)
+                            }
+
+                            else if(environment == "PROD"){
+                                hp.setWorkflowTransition(item,11)
+
+                            }
+
+
+                        }
+
+                        else if (statusRelatedIssue == "In Progress"){
+                            hp.setCustomFieldValue(item,0.toDouble(),hp.getCustomField(customFieldNameOrderItemConfirmationValue))
+
+                            //set the workflowstatus for the subtask to "in Progress == 21
+                            if(environment == "DEV"){
+                                hp.setWorkflowTransition(item,21)
+                            }
+
+                            else if(environment == "PROD"){
+                                hp.setWorkflowTransition(item,21)
+
+                            }
+
+                        }
+
+
+
+
+
+
+                        //check if the related item was exchanged "IN and OUT"
+
+                        relatedIssueExchangeFlag = hp.getCustomFieldValue(relatedIssue,customFieldNameExchangeFlag)
+
+                        if(relatedIssueExchangeFlag != "null"){
+
+                            relatedIssueExchangeFlag = hp.removeFirstAndLastCharacterFromString(relatedIssueExchangeFlag)
+                        }
+
+                        else if(relatedIssueExchangeFlag == "null"){
+                            relatedIssueExchangeFlag = ""
+                        }
+
+
+
+
+                        if(relatedIssueExchangeFlag == "OUT"){
+
+                            def myOrderItemValue = hp.getCustomFieldValue(item,customFieldNameOrderItemValue).toDouble()
+
+                            if(myOrderItemValue != 0.toDouble()){
+
+
+                                hp.setCustomFieldValue(item,hp.getCustomFieldValue(item,customFieldNameOrderItemValue).toDouble(),hp.getCustomField(customFieldNameOrderItemExchangeValue))
+
+
+                                hp.setCustomFieldValue(item,0.toDouble(),hp.getCustomField(customFieldNameOrderItemValue))
+
+                            }
+
+                                orderItemExchangeValue = hp.getCustomFieldValue(item,customFieldNameOrderItemExchangeValue).toDouble()
+
+                                orderExchangeValue = orderExchangeValue + orderItemExchangeValue
+
+
+
+                        }
+
+                        else if(relatedIssueExchangeFlag ==""){
+
+                            myOrderItemValue = hp.getCustomFieldValue(item,customFieldNameOrderItemValue).toDouble()
+
+                            def myOrderItemExchangeValue = hp.getCustomFieldValue(item,customFieldNameOrderItemExchangeValue)
+
+                            if(myOrderItemExchangeValue != "null" && myOrderItemExchangeValue!="0.0"){
+
+                               def myValue = hp.getCustomFieldValue(item,customFieldNameOrderItemExchangeValue).toDouble()
+                               hp.setCustomFieldValue(item,myValue,hp.getCustomField(customFieldNameOrderItemValue))
+                               hp.setCustomFieldValue(item,0.toDouble(),hp.getCustomField(customFieldNameOrderItemExchangeValue))
+
+                               orderItemExchangeValue = hp.getCustomFieldValue(item,customFieldNameOrderItemExchangeValue)
+
+
+
+                            orderExchangeValue = orderExchangeValue + orderItemExchangeValue
+                            }
+                        }
+
+                        else if(relatedIssueExchangeFlag == "IN"){
+
+
+
+                            orderExchangeValue = orderItemExchangeValue - hp.getCustomFieldValue(item,customFieldNameOrderItemValue).toDouble()
+
+                        }
+
+
+                    //calculate the orderItemValue
+
+                    orderItemValue = hp.getCustomFieldValue(item,customFieldNameOrderItemValue).toDouble()
+
+                    orderValue = orderValue + orderItemValue
+
+
+                    }
+
+
+
+
+                    //set the OrderValue
+                    hp.setCustomFieldValue(issue,orderValue,hp.getCustomField(customFieldNameOrderValue))
+
+                    //set the OrderConfirmationValue
+                    hp.setCustomFieldValue(issue,orderConfirmationValue,hp.getCustomField(customFieldNameOrderConfirmationValue))
+
+                    //set the OrderExchangeValue
+                    hp.setCustomFieldValue(issue,orderExchangeValue,hp.getCustomField(customFieldNameOrderEchangeValue))
+
+
+                    def option = hp.setCustomFieldValueOption(issue,".OrderRefresh","idle")
+
+                }
+
+            }
+        }
+
+
 
 
         else if (searchResult != null && field == ".TestStatus"){
@@ -1675,6 +1928,8 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
 
+
+
 def Category log = Category.getInstance("com.onresolve.jira.groovy")
 
 log.setLevel(org.apache.log4j.Level.OFF)
@@ -1683,6 +1938,9 @@ def constDEV = "DEV"
 def constPROD = "PROD"
 
 hp = new Helper()
+
+
+
 
 main(getCurrentIssue("EV"),log,hp,constDEV)
 

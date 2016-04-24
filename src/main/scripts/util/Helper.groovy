@@ -147,7 +147,7 @@ class Helper {
         cfm = ComponentAccessor.getCustomFieldManager()
 
         CustomField customField = cfm.getCustomFieldObjectByName(myCustomField);
-        value = (String)customField.getValue(issue)
+        value = customField.getValue(issue).toString()
 
         if (value == null) {
             value = ""
@@ -378,32 +378,64 @@ class Helper {
 
 
 //this method is responsible for the creation of subTask
-    def addSubTask(Issue issue, String subTaskName, String subTaskSummary, String subTaskDescription) {
+    def addSubTask(Issue issue, String subTaskType, String subTaskName, String subTaskSummary, String subTaskDescription,String environment,Issue linktToIssue) {
+
+        //we have two kind of subtasks available real subtasks and orderItems
+
+        def issueTypeIdForSubTask
+
+        //DEV
+        def story_DEV = "10001"
+        //requirement 10102
+        //pke 10101
+        //test case 10103
+        //business request 10100
+        //bug 1
+        def subtask_DEV = "5"
+        //order 10201
+        def orderitem_DEV = "10200"
 
 
-        //start customizing
-
-        def issueTypeIdForSubTask = "5"
-
-        //end customizing
 
 
+
+
+        //define the issuetype for the object to be created
+
+        if(subTaskType == "Sub-task" && environment == "DEV"){
+             issueTypeIdForSubTask = "5"
+        }
+
+        else if(subTaskType =="OrderItem" && environment =="DEV"){
+
+            issueTypeIdForSubTask = "10200"
+        }
+
+        else if(subTaskType == "Sub-task" && environment == "PROD"){
+            issueTypeIdForSubTask = "5"
+        }
+
+        else if(subTaskType =="OrderItem" && environment =="PROD"){
+
+            issueTypeIdForSubTask = "10200"
+        }
 
 
 
         //Instanzierung der factories
-        isf = ComponentAccessor.getIssueFactory()
+        def isf = ComponentAccessor.getIssueFactory()
 
         //IssueFactory: we create her a generic issue
         def issueObject = isf.getIssue()
 
+        //assign the project of the parent to the new issue
         issueObject.setProjectObject(issue.getProjectObject())
 
-        //Possible IssueTypeValues are 10001 story, 10101 subtask, 10102 bug, 10000 epic
-        // old value 5 ?
+
+        //set the issuetype for the created issue
         issueObject.setIssueTypeId(issueTypeIdForSubTask)
 
-        //getValues of current issue = parent
+        //set the parentID
         issueObject.setParentId(issue.getId())
 
 
@@ -417,9 +449,12 @@ class Helper {
         }
 
 
-
+        //set the assignee of parent
         issueObject.setAssignee(issue.getAssignee())
+
         issueObject.setDescription(subTaskDescription)
+
+        //set the reporter of parent
         issueObject.setReporter(issue.getReporter())
 
 
@@ -437,34 +472,38 @@ class Helper {
         }
 
 
-        checkResult = checkIfSubTaskSummaryExists(issue,toBeCreatedSubTaskSummary)
+        def checkResult = checkIfSubTaskSummaryExists(issue,toBeCreatedSubTaskSummary)
 
 
         // we only create our new SubTask if the the value of summary does not exist in any already defined subtask
         if (!checkResult) {
 
             //the issue gets created with the IssueMngr
-            ism = ComponentAccessor.getIssueManager()
+            def ism = ComponentAccessor.getIssueManager()
 
             //Security
             //jac = ComponentAccessor.getJiraAuthenticationContext()
 
-            currentUser = getCurrentUser()
+            def currentUser = getCurrentUser()
 
-            subTask = ism.createIssueObject(currentUser, issueObject)
+            def subTask = ism.createIssueObject(currentUser, issueObject)
 
 
 
 
             //the created subtask is linked to the issue.This is done through the SubTaskMngr
-
-            stm = ComponentAccessor.getSubTaskManager()
+            def stm = ComponentAccessor.getSubTaskManager()
             stm.createSubTaskIssueLink(issue, subTask, currentUser)
 
 
+            //create additional links
+            linkIssue(subTask,linktToIssue,"Relates",environment)
+
+
             // disable the watcher using the WatcherManager
-            wtm = ComponentAccessor.getWatcherManager()
+            def wtm = ComponentAccessor.getWatcherManager()
             wtm.stopWatching(currentUser, subTask)
+
 
         }
 
@@ -524,7 +563,7 @@ class Helper {
         return sprintName
     }
 
-    def setCustomFieldValue(Issue issue, String myValueToSave, CustomField myCustomField){
+    def setCustomFieldValue(Issue issue, Object myValueToSave, CustomField myCustomField){
 
 
         def myIssue = issue
@@ -539,6 +578,7 @@ class Helper {
         myMutableIssue.setCustomFieldValue(myCustomField,myValueToSave)
 
 
+
         Map<String,ModifiedValue> modifiedFields = myMutableIssue.getModifiedFields()
 
         FieldLayoutItem myFieldLayoutItem = ComponentAccessor.getFieldLayoutManager().getFieldLayout(myMutableIssue).getFieldLayoutItem(myCustomField)
@@ -548,6 +588,7 @@ class Helper {
         final ModifiedValue myModifiedValue = modifiedFields.get(myCustomField.getId())
 
         myCustomField.updateValue(myFieldLayoutItem,myMutableIssue,myModifiedValue,myDefaultIssueChangeHolder)
+
 
     }
 
@@ -2011,7 +2052,7 @@ class Helper {
 
         if(issueType == issueTypeOrder){
 
-            issues = selectIssues(issue,orderId,customFieldOrder)
+            issues = selectOrderItems(issue,orderId,customFieldOrder)
         }
 
         for (Issue item : issues){
@@ -2024,21 +2065,22 @@ class Helper {
 
     }
 
-    def selectIssues(Issue issue, String orderId, String customFieldOrder){
+    def selectOrderItems(Issue issue, String orderId, String customFieldOrder){
 
-        def query = ""
+        def query
         def queryResult
         def issues = new HashSet<Issue>()
 
-        query = customFieldOrder + "= \"" + orderId + "\""
+        query = customFieldOrder + "=" + orderId
 
 
-        queryResult =getIssuesByQuery(issue,query).getIssues()
+        queryResult =getIssuesByQuery(query).getIssues()
 
 
 
         //we need the IssueManager in order to create the issue of the the result of the query
         IssueManager issueManager = ComponentAccessor.getIssueManager()
+
 
         for(Issue item : queryResult){
 
@@ -2184,7 +2226,9 @@ class Helper {
         def sourceIssueId = fromIssue.getId()
         def destinationIssueId = toIssue.getId()
 
-        def Relates = "10003"
+        def Relates_DEV = "10003"
+        def Relates_PROD = "10003"
+
         def Cloners = "10001"
         def Duplicate = "10002"
         def Tests_DEV = "10301"
@@ -2203,6 +2247,17 @@ class Helper {
             else if (environment == constDEV){
                 issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests_DEV),Long.valueOf(1), user)
             }
+        }
+
+        else if (linkTypeName == "Relates"){
+
+            if(environment == constPROD )
+                issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Relates_PROD),Long.valueOf(1), user)
+
+            else if (environment == constDEV){
+                issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Relates_DEV),Long.valueOf(1), user)
+            }
+
         }
 
 
