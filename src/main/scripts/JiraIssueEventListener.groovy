@@ -5,6 +5,7 @@ import com.atlassian.jira.component.ComponentAccessor
 import com.atlassian.jira.event.issue.IssueEvent
 import com.atlassian.jira.issue.Issue
 import com.atlassian.jira.issue.IssueManager
+import com.atlassian.jira.issue.issuetype.IssueType
 import com.atlassian.jira.issue.link.DefaultRemoteIssueLinkManager
 import com.atlassian.jira.issue.link.RemoteIssueLink
 import com.atlassian.jira.issue.link.RemoteIssueLinkBuilder
@@ -1928,20 +1929,43 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
 
-
-
 def Category log = Category.getInstance("com.onresolve.jira.groovy")
-
-log.setLevel(org.apache.log4j.Level.OFF)
-
 def constDEV = "DEV"
 def constPROD = "PROD"
 
 hp = new Helper()
 
+def showProductiveData(Helper hp, Category log){
+
+    def myProject = "DEMO"
+    def jiraProject
+
+
+    jiraProject = hp.getProject(myProject)
+
+    def itsm = ComponentAccessor.getIssueTypeSchemeManager()
+
+    Collection<IssueType> issueTypes = itsm.getIssueTypesForProject(jiraProject)
+
+    for(IssueType item : issueTypes){
+
+        log.info("Available IssueTypes: ")
+        log.info("Issuetype Name: " + item.getName())
+        log.info("Issuetype ID: " + item.getId())
+
+    }
 
 
 
+}
+
+
+//maintain the desired log level . For production use OFF.
+log.setLevel(org.apache.log4j.Level.OFF)
+
+showProductiveData(hp,log)
+
+//define if the script is for the development envionment or for production
 main(getCurrentIssue("EV"),log,hp,constDEV)
 
 
