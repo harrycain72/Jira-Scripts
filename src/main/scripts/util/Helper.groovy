@@ -256,6 +256,8 @@ class Helper {
 
     }
 
+
+
     def createIssue(String projectKey, String issueType, String summary, String description, String reporter, User currentUser){
 
         def project //Jira-Project
