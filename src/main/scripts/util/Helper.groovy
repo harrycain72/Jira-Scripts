@@ -48,7 +48,6 @@ class Helper {
 
 
 
-
 //method retrieves the current application user
 
     Helper() {
@@ -499,7 +498,7 @@ class Helper {
 
 
             //create additional links
-            linkIssue(subTask,linktToIssue,"Relates",environment)
+            addAndRemoveLinksToIssue(subTask,linktToIssue,"Relates",environment)
 
 
             // disable the watcher using the WatcherManager
@@ -787,9 +786,13 @@ class Helper {
 
     def retrieveTokens(String newValue,String delimitor){
 
-        Set<String> set = new HashSet<String>();
 
-        StringTokenizer st = new StringTokenizer(newValue,delimitor)
+        def newValueWithoutBlanks = removeBlanksFromString(newValue)
+
+
+        Set<String> set = new HashSet<String>()
+
+        StringTokenizer st = new StringTokenizer(newValueWithoutBlanks,delimitor)
 
         def myValue
 
@@ -797,6 +800,10 @@ class Helper {
         while(st.hasMoreTokens()) {
 
                 myValue = st.nextToken()
+
+
+                myValue.trim()   //removes all whitespaces and non-visible characters (e.g., tab, \n).
+
                 set.add(myValue)
         }
 
@@ -807,6 +814,40 @@ class Helper {
 
     }
 
+
+    /*
+    remove blanks from a String
+     */
+
+    def removeBlanksFromString(String myString){
+
+        def withoutspaces = ""
+
+
+        for (int i = 0; i < myString.length(); i++) {
+            if (myString.charAt(i) != ' ')
+                withoutspaces += myString.charAt(i);
+
+        }
+
+        return withoutspaces
+    }
+
+
+    /*
+    get all components for an issue
+     */
+    def getAllComponentsForIssue(Issue issue){
+
+
+        def Collection<ProjectComponent> myComponents
+
+        myComponents = issue.getComponentObjects() //get all components for the issue
+
+        return myComponents
+
+
+    }
 
 // This method retrieves the issue based on its key
     def Issue getIssueByKey(String myIssueKey){
@@ -857,7 +898,46 @@ class Helper {
     }
 
 
+/*
+Get the assignee of the subtask for the defined story starting with Prefix DEV
+ */
 
+    def getDevelopmentSubtaskAssigneeForStory(Issue issueStory){
+
+        def devSubtaskAssignee
+        def Issue developmentSubtaskIssue
+
+        //get the development Subtask based on prefix "DEV"
+        developmentSubtaskIssue = getDevSubTaskForStory(issueStory)
+
+        devSubtaskAssignee = getAssigneeUserName(developmentSubtaskIssue)
+
+        return devSubtaskAssignee
+    }
+
+/*
+Get the subtask to a story with prefix DEV
+ */
+
+   def getDevSubTaskForStory(Issue issueStory){
+
+       def subtasksForStoryList = []
+       def Issue developmentSubTask
+
+       subtasksForStoryList= getAllSubTasksForStory(issueStory) // get all subtasks for the story
+
+       if(subtasksForStoryList.size() != 0){
+
+
+               for (Issue issue : subtasksForStoryList){
+                   if (issue.summary.substring(0,3) == "DEV"){  // only the subtask with prefix DEV is the relevant one.
+                       developmentSubTask = issue
+                   }
+               }
+       }
+
+       return developmentSubTask
+   }
 
 
     def getSprintAndReleaseName(Issue issue){
@@ -2167,6 +2247,9 @@ class Helper {
 
         def Issue story
         def  myTempListOfIssues =[]
+
+
+
         myTempListOfIssues.addAll(getIssuesOfNetworkByLinkType(requirement,"1", "validates").getIssues())
 
         //we should have only one story
@@ -2189,7 +2272,7 @@ class Helper {
     }
 
 
-    def getStoryFromTestcase(Issue testcase,Category log){
+    def getStoryFromTestcase(Issue testcase){
 
         def size
 
@@ -2214,42 +2297,76 @@ class Helper {
 
     }
 
-    def linkIssue(Issue fromIssue, Issue toIssue, String linkTypeName,String environment){
+
+
+    def addAndRemoveLinksToIssue(Issue fromIssue, Issue toIssue, String linkTypeName, String environment, String addDeleteFlag){
 
         def constPROD = "PROD"
         def constDEV = "DEV"
 
-        def MutableIssue mutableIssue = (MutableIssue)fromIssue
-
-        def issueLinkManager = ComponentAccessor.getIssueLinkManager()
-        def issueLinkTypeManager = ComponentAccessor.getComponentOfType(IssueLinkTypeManager.class)
-        def issueManager = ComponentAccessor.getIssueManager()
-
-        def sourceIssueId = fromIssue.getId()
-        def destinationIssueId = toIssue.getId()
-
+        //these valued depend directly of the JIRA customizing
         def Relates_DEV = "10003"
+        def Tests_DEV = "10301"
+
         def Relates_PROD = "10003"
+        def Tests_PROD = "10500"
 
         def Cloners = "10001"
         def Duplicate = "10002"
-        def Tests_DEV = "10301"
-        def Tests_PROD = "10500"
         def Validates = "10300"
 
+
+
+
+        def MutableIssue mutableIssue = (MutableIssue)fromIssue
+        def issueLinkManager = ComponentAccessor.getIssueLinkManager()
+        def issueLinkTypeManager = ComponentAccessor.getComponentOfType(IssueLinkTypeManager.class)
+        def issueManager = ComponentAccessor.getIssueManager()
+        def sourceIssueId = fromIssue.getId()
+        def destinationIssueId = toIssue.getId()
         def user = getCurrentUser()
+        def linkTypeId = getIssueLinkTypeIDbyName(linkTypeName)
+
+
+       def issueLink = issueLinkManager.getIssueLink(fromIssue.getId(),toIssue.getId(),linkTypeId)
+
 
 
 
         if(linkTypeName == "Tests"){
 
             if(environment == constPROD )
-            issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests_PROD),Long.valueOf(1), user)
+
+                if(addDeleteFlag == "add"){
+
+
+                    issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests_PROD),Long.valueOf(1), user)
+                }
+
+                if(addDeleteFlag == "delete"){
+
+
+                    issueLinkManager.removeIssueLink(issueLink,user)
+
+
+                }
 
             else if (environment == constDEV){
-                issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests_DEV),Long.valueOf(1), user)
+
+                if(addDeleteFlag == "add"){
+                    issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests_DEV),Long.valueOf(1), user)
+                }
+
+                if (addDeleteFlag =="delete"){
+
+                    issueLinkManager.removeIssueLink(issueLink,user)
+
+                }
+
             }
         }
+
+
 
         else if (linkTypeName == "Relates"){
 
@@ -2263,11 +2380,40 @@ class Helper {
         }
 
 
-
-
         issueManager.updateIssue(user,mutableIssue,EventDispatchOption.ISSUE_UPDATED, false)
 
     }
+
+
+    /*
+    Returns the linkTypeId for the given Name
+     */
+
+    def getIssueLinkTypeIDbyName(String linkTypeName){
+
+        def issueLinkTypeManager = ComponentAccessor.getComponentOfType(IssueLinkTypeManager.class)
+
+        def issueLinkTypes = issueLinkTypeManager.getIssueLinkTypes()
+
+        def linkTypeId
+
+
+        for (IssueLinkType linkType :issueLinkTypes){
+
+            if(linkType.getName() == linkTypeName){
+
+                linkTypeId = linkType.getId()
+
+            }
+        }
+
+
+        return linkTypeId
+
+
+
+    }
+
 
     def showLinkTypes(Category log){
 
@@ -2375,14 +2521,19 @@ class Helper {
     }
 
 
-    def getAllSubTasksForStory(Issue issue){
+/*
+This method gets al subtasks for a story and casts the result in to proper issues
+ */
+
+
+    def getAllSubTasksForStory(Issue issueStory){
 
         def issueTypeNameSubTasks = "Sub-task"
 
         def castedIssuesOfTypeSubTask = []
 
         // get all SubTasks for the story
-        def subTasks = getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypeNameSubTasks,"1","").getIssues()
+        def subTasks = getIssuesOfNetworkByIssueTypeAndLinkType(issueStory,issueTypeNameSubTasks,"1","").getIssues()
 
 
         //cast all issues
@@ -2397,6 +2548,69 @@ class Helper {
 
         return castedIssuesOfTypeSubTask
 
+    }
+
+    /*
+    This method determines the delta of two lists.
+    It returns two lists : toBeAdded and toBeDeleted from existingList
+     */
+    def compareTwoListsOfStrings(List existingList, List updatedList){
+
+        def toBeAddedToExistingList = []
+        def toBeDeletedFromExistingList = []
+        Set<Object> overlapList = new HashSet<Object>()
+
+        def resultLists =[]
+        def found
+
+        resultLists.add(toBeAddedToExistingList)
+        resultLists.add(toBeDeletedFromExistingList)
+        resultLists.add(overlapList)
+
+
+        //check for all objects that exist in the compareWithList if these also exist in the masterList
+        //if this is the case, then nothing to be done. If one is missing, this hast to be added to the masterlist
+
+        if(updatedList.size()!=0){  //make sure we have at least one item in the list
+
+            // check if new items have to be added to the existingList
+            // for every item in the updatedList we check if we have the item in the existing list
+            for(String item: updatedList){
+                def test = item.toString()
+                found = existingList.find{ it == item.toString()}
+
+                //item in updatedList does not exist in existing List
+                if(found == null){
+                    toBeAddedToExistingList.add(item)
+                }
+
+
+                else if(found != null){ //the item exists in both lists. Nothing to be done
+                    overlapList.add(item)
+                }
+            }
+
+            for(String item :existingList){
+
+                found = updatedList.find{ it == item.toString()}
+
+                    if(found == null){
+
+                        toBeDeletedFromExistingList.add(item)
+
+                    }
+
+                    if(found != null){
+                        overlapList.add(item)
+                    }
+
+
+                }
+            }
+
+
+
+        return resultLists
     }
 
 }
