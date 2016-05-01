@@ -739,7 +739,7 @@ def copyAndDeleteExternalLinks(Issue currentIssue, List<Issue> issuesToCopyLinks
                     def sourceID = item.getSummary()
 
 
-                    //We  onl want to check links, which were created by this current issue
+                    //We  only want to check links, which were created by this current issue
                     if(sourceID == currentIssue.getKey()){
 
                         targetURLsWithOriginCurrentIssue.add(Url)
@@ -915,6 +915,8 @@ def setReleaseSrintAlmSubjectforAllRequirementsAndTestCases(Issue issue,Helper h
     List myTempListOfIssues = []
 
     //get the requirements
+    def myTempListOfSubTasks
+
     myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByLinkType(issue, "1", "is validated by").getIssues())
 
     issuesInNetwork.addAll(myTempListOfSubTasks)
@@ -949,9 +951,6 @@ def setDeveloperNameForIssue(Issue issue, Helper hp){
     //begin customizing
 
         def customFieldNameDeveloper = ".Developer"
-        def nameOfPrefix = "DEV"
-        def issueTypeNameSubTasks = "Sub-task"
-        def issueTypeNameStory = "Story"
         def issueTypeNameRequirement = "Requirement"
         def issueTypeNameTestCase = "Test Case"
         def issueTypeNameBug = "Bug"
@@ -959,183 +958,42 @@ def setDeveloperNameForIssue(Issue issue, Helper hp){
     //end customizing
 
 
-    //make sure we copy the .developer if this exists
-
-    Set<Issue> issuesInNetwork = new HashSet<Issue>()
-    List myTempListOfSubTasks = []
-    def nameDeveloper = ""
+    /*
+    NEW REQUIREMENT IS CREATED
+     */
 
 
     //if a new requirement is created we need to get the developer name of the
     //related user story
-
-    if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement) {
-
-        //get the name of the developer
-
-        //get the user story based on link type "validates"
-        myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByLinkType(issue, "1", "validates").getIssues())
-
-        issuesInNetwork.addAll(myTempListOfSubTasks)
-
-        //get the sub tasks
-        for(Issue item : issuesInNetwork){
-
-            if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
-
-                myTempListOfSubTasks = []
-
-                myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByIssueTypeAndLinkType(item,issueTypeNameSubTasks,"1","").getIssues())
-
-                //get the subtask beginning with DEV
-                for(Issue subTask : myTempListOfSubTasks){
-
-                    if (subTask.getSummary().substring(0,3)== nameOfPrefix) {
-
-                        nameDeveloper = subTask.getAssignee().getName()
-
-                    }
-                }
-            }
-
-
-
-        }
-
-        hp.setCustomFieldValueUserPicker(issue,nameDeveloper,hp.getCustomField(customFieldNameDeveloper))
-
-    }
-
-
-
-
-
-    // if a test case is created, then this test case has to be assigned the developer name
 
     if(issue.getIssueTypeObject().getName() == issueTypeNameTestCase) {
 
         //get the name of the developer
 
 
-        Set<Issue> myListOfStories = new HashSet<Issue>()
-        Set<Issue> myListOfRequirements = new HashSet<Issue>()
+        def Issue issueStory
+        issueStory = hp.getStoryFromTestcase(issue)
 
+        //retrieve the developer of the story and assign this to the new created test case
+        def Issue subtask
+        subtask = hp.getDevSubTaskForStory(issueStory) // get the development SubTask based on DEV prefix
 
-        //get the requirements which are tested by the the test case
-        myListOfRequirements.addAll(hp.getIssuesOfNetworkByLinkType(issue, "1", "tests").getIssues())
+        def assigneeSubtaskDev = hp.getAssigneeUserName(subtask)  //get the assigned = developer
 
-
-        //get the stories for each requirement
-        for(Issue item : myListOfRequirements){
-
-            if(item.getIssueTypeObject().getName()== issueTypeNameRequirement){
-
-                myListOfStories = []
-                myListOfStories.addAll(hp.getIssuesOfNetworkByLinkType(item, "1", "validates").getIssues())
-
-            }
-
-        }
-
-
-        //get the sub tasks for the user stories and the name of the developer assigned to subtask with prefix DEV
-        for(Issue item : myListOfStories){
-
-            if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
-
-                myTempListOfSubTasks = []
-
-                myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByIssueTypeAndLinkType(item,issueTypeNameSubTasks,"1","").getIssues())
-
-                //get the subtask beginning with DEV
-                for(Issue item2 : myTempListOfSubTasks){
-
-                    if (item2.getSummary().substring(0,3)== nameOfPrefix) {
-
-                        nameDeveloper = item2.getAssignee().getName()
-
-                    }
-                }
-            }
-
-
-
-        }
-
-
-        hp.setCustomFieldValueUserPicker(issue,nameDeveloper,hp.getCustomField(customFieldNameDeveloper))
+        hp.setCustomFieldValueUserPicker(issue,assigneeSubtaskDev,hp.getCustomField(customFieldNameDeveloper)) // set this developer for the new test case
 
 
     }
+
 
 
     //if a bug is created, then the name of the developer of the related story has to be assigned
     if(issue.getIssueTypeObject().getName() == issueTypeNameBug) {
 
-        //get the name of the developer and add this to the Bug
-
-
-        Set<Issue> myListOfStories = new HashSet<Issue>()
-        Set<Issue> myListOfRequirements = new HashSet<Issue>()
-        Set<Issue> myListOfTestCases = new HashSet<Issue>()
-
-
-
-        //get the test cases
-        myListOfTestCases.addAll(hp.getIssuesOfNetworkByLinkType(issue, "1", "blocks").getIssues())
-
-        //get the requirements
-        for(Issue item : myListOfTestCases) {
-            if(item.getIssueTypeObject().getName() == issueTypeNameTestCase){
-
-                myListOfRequirements.addAll(hp.getIssuesOfNetworkByLinkType(item, "1", "tests").getIssues())
-            }
-
-        }
-
-        //get the stories for each requirement
-        for(Issue item : myListOfRequirements){
-
-            if(item.getIssueTypeObject().getName()== issueTypeNameRequirement){
-
-                myListOfStories = []
-                myListOfStories.addAll(hp.getIssuesOfNetworkByLinkType(item, "1", "validates").getIssues())
-
-            }
-
-        }
-
-
-        //get the sub tasks for the user stories and the name of the developer assigned to subtask with prefix DEV
-        for(Issue item : myListOfStories){
-
-            if(item.getIssueTypeObject().getName() == issueTypeNameStory) {
-
-                myTempListOfSubTasks = []
-
-                myTempListOfSubTasks.addAll(hp.getIssuesOfNetworkByIssueTypeAndLinkType(item,issueTypeNameSubTasks,"1","").getIssues())
-
-                //get the subtask beginning with DEV
-                for(Issue item2 : myTempListOfSubTasks){
-
-                    if (item2.getSummary().substring(0,3)== nameOfPrefix) {
-
-                        nameDeveloper = item2.getAssignee().getName()
-
-                    }
-                }
-            }
-
-
-
-        }
-
-        hp.setCustomFieldValueUserPicker(issue,nameDeveloper,hp.getCustomField(customFieldNameDeveloper))
-
-
-
+        //TODO
     }
 }
+
 
 def setWorkflowStatusForRequirement(Issue issue, Helper hp, String environment){
 
@@ -1151,103 +1009,241 @@ def setWorkflowStatusForRequirement(Issue issue, Helper hp, String environment){
     //To Do = 11
     //DONE = 31
 
-
-    if(environment == "PROD"){
-
+    if (testStatus != null ){
 
 
-            if(testStatus == "Failed"){
-                hp.setWorkflowTransition(issue,11)
+
+
+            if(environment == "PROD"){
+
+
+
+                    if(testStatus == "Failed"){
+                        hp.setWorkflowTransition(issue,11)
+                    }
+
+                    else if(testStatus == "Blocked"){
+                        hp.setWorkflowTransition(issue,21)
+                    }
+
+                    else if(testStatus == "No Run"){
+                        hp.setWorkflowTransition(issue,31)
+                    }
+
+                    else if(testStatus == "Not Completed"){
+                        hp.setWorkflowTransition(issue,41)
+                    }
+
+                    else if(testStatus == "Not Covered"){
+                        hp.setWorkflowTransition(issue,51)
+                    }
+
+                    else if(testStatus == "Passed"){
+                        hp.setWorkflowTransition(issue,61)
+                    }
+
+                    else if(testStatus == "Flagged for deletion"){
+                        hp.setWorkflowTransition(issue,71)
+                    }
+
             }
 
-            else if(testStatus == "Blocked"){
-                hp.setWorkflowTransition(issue,21)
-            }
+            if(environment == "DEV"){
 
-            else if(testStatus == "No Run"){
-                hp.setWorkflowTransition(issue,31)
-            }
 
-            else if(testStatus == "Not Completed"){
-                hp.setWorkflowTransition(issue,41)
-            }
 
-            else if(testStatus == "Not Covered"){
-                hp.setWorkflowTransition(issue,51)
-            }
+                if(testStatus == "Failed"){
+                    hp.setWorkflowTransition(issue,31)
+                }
 
-            else if(testStatus == "Passed"){
-                hp.setWorkflowTransition(issue,61)
-            }
+                else if(testStatus == "Blocked"){
+                    hp.setWorkflowTransition(issue,41)
+                }
 
-            else if(testStatus == "Flagged for deletion"){
-                hp.setWorkflowTransition(issue,71)
+                else if(testStatus == "No Run"){
+                    hp.setWorkflowTransition(issue,21)
+                }
+
+                else if(testStatus == "Not Completed"){
+                    hp.setWorkflowTransition(issue,51)
+                }
+
+                else if(testStatus == "Not Covered"){
+                    hp.setWorkflowTransition(issue,11)
+                }
+
+                else if(testStatus == "Passed"){
+                    hp.setWorkflowTransition(issue,61)
+                }
+
+                else if(testStatus == "Flagged For Deletion"){
+                    hp.setWorkflowTransition(issue,71)
+                }
+
             }
 
     }
 
-    if(environment == "DEV"){
 
-
-
-        if(testStatus == "Failed"){
-            hp.setWorkflowTransition(issue,11)
-        }
-
-        else if(testStatus == "Blocked"){
-            hp.setWorkflowTransition(issue,21)
-        }
-
-        else if(testStatus == "No Run"){
-            hp.setWorkflowTransition(issue,31)
-        }
-
-        else if(testStatus == "Not Completed"){
-            hp.setWorkflowTransition(issue,41)
-        }
-
-        else if(testStatus == "Not Covered"){
-            hp.setWorkflowTransition(issue,51)
-        }
-
-        else if(testStatus == "Passed"){
-            hp.setWorkflowTransition(issue,61)
-        }
-
-        else if(testStatus == "Flagged for deletion"){
-            hp.setWorkflowTransition(issue,71)
-        }
-
-    }
 }
 
 
 
-def linkIssues(Issue issue, Helper hp, String environment){
 
-    //Beginn customizing
+/*
+This method links two issues
+
+ */
+
+def createLinksToRequirements(Issue issue, Helper hp, String environment){
+
+    //Begin customizing
     def customFieldNameRequirementID = ".Requirement-ID"
     //End customizing
 
-    def issueIDsToLink = hp.getCustomFieldValue(issue,customFieldNameRequirementID)
+
+    //here we retrieve the JIRA-Requirement-IDs
+    //These should be delimitied by ',' without blanks
 
     def issueIDs = []
+    def issueIDsToLink = hp.getCustomFieldValue(issue,customFieldNameRequirementID) //as defined in HP-ALM
+    def issueIDsToLinkWithoutBlanks
+
+    //if some blanks exist, remove those and update the field correctly
+    issueIDsToLinkWithoutBlanks = hp.removeBlanksFromString(issueIDsToLink)
+    hp.setCustomFieldValue(issue,issueIDsToLinkWithoutBlanks,hp.getCustomField(customFieldNameRequirementID))
+
 
     issueIDs = hp.retrieveTokens(issueIDsToLink,",")
 
 
     for(String  issueKey : issueIDs){
 
-        hp.linkIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment)
+        //possible values for the type of relatio are implemented:  "Tests", "Relates"
+        hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,add)
 
     }
+
+
 }
+
+
+def updateLinksToRequirements(Issue issue, String linkTypeName, String environment, Helper hp){
+
+    def issueTypeNameRequirement = "Requirement"
+    def customFieldNameRequirementID = ".Requirement-ID"
+
+    def existingRquirementsIDsList= []
+    def updatedRequirementsIDsList= []
+    def resultLists = []
+
+    def toAddList = []
+    def toDeleteList = []
+
+
+    linkedRequirementsList = hp.getIssuesOfNetworkByIssueTypeAndLinkType(issue,issueTypeNameRequirement,"1","tests").getIssues()
+
+
+    for(Issue item: linkedRequirementsList){
+
+        existingRquirementsIDsList.add(item.getKey())
+    }
+
+
+
+
+    def issueIDsToLink = hp.getCustomFieldValue(issue,customFieldNameRequirementID) //as defined in HP-ALM
+
+    if(issueIDsToLink != "null"){
+
+
+
+                    //get rid of the blanks and update the customfield
+                    def issueIDsToLinkWithouBlanks = hp.removeBlanksFromString(issueIDsToLink)
+                    hp.setCustomFieldValue(issue,issueIDsToLinkWithouBlanks,hp.getCustomField(customFieldNameRequirementID))
+
+                    updatedRequirementsIDsList = (ArrayList)hp.retrieveTokens(issueIDsToLink,",")
+
+
+
+
+            resultLists = hp.compareTwoListsOfStrings(existingRquirementsIDsList,updatedRequirementsIDsList)
+
+
+
+
+
+
+
+            toAddList = resultLists.get(0)
+
+            toDeleteList = resultLists.get(1)
+
+
+            //add the missing links from the testcase to the requirements
+
+            if(toAddList.size()!=0){
+
+
+                for (String issueKey : toAddList){
+
+
+                    hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"add")
+
+                    }
+
+            }
+
+
+            //remove the obsolete links from the testcase to the requirements
+
+
+            if(toDeleteList.size() != 0){
+
+
+
+                for (String issueKey : toDeleteList){
+
+                    hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"delete")
+                }
+
+
+            }
+
+    }
+
+
+
+
+    else if(issueIDsToLink == "null"){
+
+        toDeleteList = existingRquirementsIDsList
+
+
+        if(toDeleteList.size() != 0){
+
+
+
+            for (String issueKey : toDeleteList){
+
+                hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"delete")
+            }
+
+
+        }
+
+    }
+
+}
+
+
+
 
 
 def main(Issue issue, Category log, Helper hp, String environment){
 
     //just relevant for testing purposes in order to check the name of JIRA-fields
-    def test = event.getChangeLog().getRelated('ChildChangeItem')
+    //def test = event.getChangeLog().getRelated('ChildChangeItem')
 
 
     log.info("Entering handleIssueUpdateAndAssignEvents() ")
@@ -1267,7 +1263,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
     def customfieldNameTestCaseOrigin = ".TestCaseOrigin"
     def customfieldNameAlmSubjectHP = ".ALM_Subject_HP"
     def customfieldNameTestStatus = ".TestStatus"
-    def nameOfPrefix = "DEV"
+    def nameOfPrefixDEV = "DEV"
     def issueTypeNameSubTasks = "Sub-task"
     def issueTypeNameStory = "Story"
     def issueTypeNameRequirement = "Requirement"
@@ -1299,7 +1295,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
     def issueType = issue.getIssueTypeObject().getName()
 
     // These names should be standard in JIRA and not change from release to release
-    def listOfFieldNames = [".OrderRefresh",".inheritLinks","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module",".TestStatus",".Release",".Sprint"]
+    def listOfFieldNames = [".Requirement-ID",".OrderRefresh",".inheritLinks","Component", "Fix Version", "Sprint", "assignee",".IT-App_Module",".TestStatus",".Release",".Sprint"]
     def searchResult
     def field
 
@@ -1339,6 +1335,11 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
             log.debug("No update found for field " + item)
         }
+
+
+        /*
+        HANDLING UPDATE OF COMPONENT
+         */
 
 
         //make sure, that all the subtasks assigned to a story allways have the same components assigned to them.
@@ -1403,6 +1404,14 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
         }
+
+        /*
+          HANDLING OF UPDATES OF THE CUSTOMFIELDS .RELEASE and .SPRINT
+          This is needed in order to update the field .ALM_subject.
+          This field ist necessary in order to sync test cases from JIRA to HP ALM
+          The value of this field MUST be availabe on HP-ALM/Testplan in order to
+          sync test cases with origin JIRA.
+         */
 
         else if (searchResult != null && field == ".Release" || field == ".Sprint" ){
 
@@ -1690,13 +1699,30 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
 
+        /*
+        UPDATE OF TEST STATUS OF REQUIREMENT
+         */
 
         else if (searchResult != null && field == ".TestStatus"){
 
+
             //set the workflow status based on customfield  .TestStatus
-            setWorkflowStatusForRequirement(issue,hp)
+            setWorkflowStatusForRequirement(issue,hp,environment)
 
         }
+
+
+        /*
+        UPDATE OF THE FIELD .REQUIREMENT-ID OT TEST CASE
+        */
+
+        else if (searchResult != null && field == ".Requirement-ID"){
+
+            updateLinksToRequirements(issue,"tests",environment,hp)
+
+        }
+
+
 
 
 
@@ -1729,7 +1755,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
             //we only copy the name of the developer if the subtasks begins witn prefix DEV
             //set developer name for subTask, story, requirements and test cases
 
-            if(issueType == issueTypeNameSubTasks && keyWord == nameOfPrefix){
+            if(issueType == issueTypeNameSubTasks && keyWord == nameOfPrefixDEV){
 
                 def newAssignee = searchResult.newstring
                 def userName
@@ -1818,6 +1844,9 @@ def main(Issue issue, Category log, Helper hp, String environment){
             hp.setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames)
 
         }
+
+
+
     }
 
 
@@ -1828,6 +1857,10 @@ def main(Issue issue, Category log, Helper hp, String environment){
     // issue.created ==issue.updated
     else {
 
+        /*
+        AFTER CREATION OF STORIES
+         */
+
         if(issue.getIssueTypeObject().getName() == issueTypeNameStory){
 
             setReleaseSprint(issue,hp)
@@ -1837,15 +1870,28 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
 
+        /*
+        AFTER CREATION OF REQUIREMENTS
+        */
 
         else if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement){
 
 
             //set the workflow status based on customfield  .TestStatus
-            setWorkflowStatusForRequirement(issue,hp,environment)
+            //setWorkflowStatusForRequirement(issue,hp,environment)
 
         }
 
+
+
+
+        /*
+         AFTER CREATION OF TEST CASES
+        */
+
+
+        //handling the creation of test cases in JIRA. These can have
+        //an origin in JIRA or in HP-ALM
 
         else if(issue.getIssueTypeObject().getName() == issueTypeNameTestCase){
 
@@ -1853,6 +1899,10 @@ def main(Issue issue, Category log, Helper hp, String environment){
             //This value is set via Exocert plugin or via Tasktop Sync
             def origin = hp.getCustomFieldValue(issue,customfieldNameTestCaseOrigin)
 
+
+            /*
+
+             */
 
             //True for testcase created in Jira
             if (origin ==  constantJIRA){
@@ -1868,20 +1918,35 @@ def main(Issue issue, Category log, Helper hp, String environment){
             }
 
 
+
+             /*
+             TEST CASE CREATED IN HP-ALM
+             */
+
             //True for testcase created in HP-ALM
             else if (origin == constantHPALM){
 
                 //link all requirements as defined in HP-ALM via UploadExcel
-                linkIssues(issue,hp,environment)
+                createLinksToRequirements(issue,hp,environment)
 
 
 
-                //set .Release and .Sprint
-                def story = hp.getStoryFromTestcase(issue,log)
+                /*
+                Set the customfields .Release and .Sprint
+
+                We copy the value for the .Release and for .Sprint from the story.
+                This can be accomplished as we have linked the test case after its creation with all
+                relevant requirements
+
+                */
+                def story = hp.getStoryFromTestcase(issue)
 
                 hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameRelease)),customFieldNameRelease)
 
                 hp.setLabelCustomField(issue,hp.removeFirstAndLastCharacterFromString(hp.getCustomFieldValue(story,customFieldNameSprint)),customFieldNameSprint)
+
+
+
 
                 // set .ALM_subject
                 // use the value with origin HP
@@ -1896,11 +1961,22 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
 
+                //retrieve all components from story and assign those to the new created test case
+                def listOfComponentsOfStory = []
+                listOfComponentsOfStory = hp.getAllComponentsForIssue(story)
+
+                //update the components of my new created test case
+                hp.updateComponents(issue, listOfComponentsOfStory)
+
+
+
+
+
             }
         }
 
                 //set the .DeveloperName as assigned to subtask with prefix DEV
-            else if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement || issueTypeNameTestCase || issueTypeNameBug){
+            if(issue.getIssueTypeObject().getName() == issueTypeNameRequirement  || issueTypeNameBug || issueTypeNameTestCase) {
 
                  setDeveloperNameForIssue(issue,hp)
 
@@ -1909,6 +1985,24 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
 
         else if(issue.getIssueTypeObject().getName() == issueTypeNameBusinessRequest){
+
+
+
+            def userName
+
+
+
+            // set for this issue of type sub task the customfield .Developer t
+
+            if(newAssignee != null) {
+
+                userName = hp.getAssigneeUserName(issue)
+
+            }
+
+            else {
+                userName = ""
+            }
 
             hp.setReleaseAndSprintNamesInBusinessRequest(issue,customFieldNameSprintAndReleaseNames)
 
