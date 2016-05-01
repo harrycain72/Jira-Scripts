@@ -2299,7 +2299,9 @@ Get the subtask to a story with prefix DEV
 
 
 
-    def addAndRemoveLinksToIssue(Issue fromIssue, Issue toIssue, String linkTypeName, String environment, String addDeleteFlag){
+    def addAndRemoveLinksToIssue(Issue fromIssue, Issue toIssue, String linkTypeName, String environment, String addDeleteFlag,Category log){
+
+        log.info("Beginn of addAndRemoveLinksToIssue")
 
         def constPROD = "PROD"
         def constDEV = "DEV"
@@ -2339,13 +2341,13 @@ Get the subtask to a story with prefix DEV
 
                 if(addDeleteFlag == "add"){
 
-
+                    log.info("Before issueLinkManager.createIssueLink")
                     issueLinkManager.createIssueLink(sourceIssueId,destinationIssueId, Long.parseLong(Tests_PROD),Long.valueOf(1), user)
                 }
 
                 if(addDeleteFlag == "delete"){
 
-
+                    log.info("Before issueLinkManager.removeIssueLin")
                     issueLinkManager.removeIssueLink(issueLink,user)
 
 
