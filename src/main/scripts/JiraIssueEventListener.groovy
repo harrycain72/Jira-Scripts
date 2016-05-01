@@ -1128,7 +1128,9 @@ def createLinksToRequirements(Issue issue, Helper hp, String environment){
 }
 
 
-def updateLinksToRequirements(Issue issue, String linkTypeName, String environment, Helper hp){
+def updateLinksToRequirements(Issue issue, String linkTypeName, String environment, Helper hp,Category log){
+
+    log.info(" Beginn of updateLinksToRequirements")
 
     def issueTypeNameRequirement = "Requirement"
     def customFieldNameRequirementID = ".Requirement-ID"
@@ -1180,6 +1182,10 @@ def updateLinksToRequirements(Issue issue, String linkTypeName, String environme
             toDeleteList = resultLists.get(1)
 
 
+            log.info("toAddList and toDeleteList finished")
+
+
+
             //add the missing links from the testcase to the requirements
 
             if(toAddList.size()!=0){
@@ -1188,7 +1194,7 @@ def updateLinksToRequirements(Issue issue, String linkTypeName, String environme
                 for (String issueKey : toAddList){
 
 
-                    hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"add")
+                    hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"add",log)
 
                     }
 
@@ -1718,7 +1724,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
         else if (searchResult != null && field == ".Requirement-ID"){
 
-            updateLinksToRequirements(issue,"tests",environment,hp)
+            updateLinksToRequirements(issue,"tests",environment,hp,log)
 
         }
 
