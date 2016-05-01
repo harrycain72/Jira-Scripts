@@ -1095,7 +1095,9 @@ This method links two issues
 
  */
 
-def createLinksToRequirements(Issue issue, Helper hp, String environment){
+def createLinksToRequirements(Issue issue, Helper hp, String environment,Category log){
+
+    //log.info("just entered createLinksToRequirements")
 
     //Begin customizing
     def customFieldNameRequirementID = ".Requirement-ID"
@@ -1120,7 +1122,7 @@ def createLinksToRequirements(Issue issue, Helper hp, String environment){
     for(String  issueKey : issueIDs){
 
         //possible values for the type of relatio are implemented:  "Tests", "Relates"
-        hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,add)
+        hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"add",log)
 
     }
 
@@ -1210,7 +1212,7 @@ def updateLinksToRequirements(Issue issue, String linkTypeName, String environme
 
                 for (String issueKey : toDeleteList){
 
-                    hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"delete")
+                    hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"delete",log)
                 }
 
 
@@ -1252,7 +1254,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
     //def test = event.getChangeLog().getRelated('ChildChangeItem')
 
 
-    log.info("Entering handleIssueUpdateAndAssignEvents() ")
+    log.info("Just entered main")
     //hp.showLinkTypes(log)
 
 
@@ -1933,7 +1935,9 @@ def main(Issue issue, Category log, Helper hp, String environment){
             else if (origin == constantHPALM){
 
                 //link all requirements as defined in HP-ALM via UploadExcel
-                createLinksToRequirements(issue,hp,environment)
+                log.info("Before entering createLinksToRequirements Line 1939")
+
+                createLinksToRequirements(issue,hp,environment,log)
 
 
 
@@ -2061,9 +2065,9 @@ def showProductiveData(Helper hp, Category log){
 
 
 //maintain the desired log level . For production use OFF.
-log.setLevel(org.apache.log4j.Level.OFF)
+log.setLevel(org.apache.log4j.Level.INFO)
 
-showProductiveData(hp,log)
+//showProductiveData(hp,log)
 
 //define if the script is for the development envionment or for production
 main(getCurrentIssue("EV"),log,hp,constDEV)
