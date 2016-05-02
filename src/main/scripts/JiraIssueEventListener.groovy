@@ -1234,7 +1234,7 @@ def updateLinksToRequirements(Issue issue, String linkTypeName, String environme
 
             for (String issueKey : toDeleteList){
 
-                hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"delete")
+                hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"delete",log)
             }
 
 
@@ -2070,7 +2070,7 @@ log.setLevel(org.apache.log4j.Level.INFO)
 //showProductiveData(hp,log)
 
 //define if the script is for the development envionment or for production
-main(getCurrentIssue("EV"),log,hp,constDEV)
+main(getCurrentIssue("EV"),log,hp,constPROD)
 
 
 
