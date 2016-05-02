@@ -2,6 +2,8 @@ import com.atlassian.jira.event.issue.IssueEvent
 import com.atlassian.jira.issue.Issue
 import org.apache.log4j.Category
 import util.Helper
+import util.CustomizingMngr
+
 
 /**
  * Created by roland on 10.04.16.
@@ -26,24 +28,13 @@ def getCurrentIssue(String flag){
 
 def main(Issue issue, Category log, Helper hp, String environment) {
 
-    //just relevant for testing purposes in order to check the name of JIRA-fields
-    //def test = event.getChangeLog().getRelated('ChildChangeItem')
-
-    //begin customizing
-
-
-    def issueTypeNameSubTasks = "Sub-task"
-    def constantWfStatusInProgress = "In Progress"
-    def constantWfStatusDone = "Done"
-    def constandWfStatusToDo = "To Do"
-
-    //end customizing
+    def CustomizingMngr cm = new CustomizingMngr()
 
 
     def issueType = issue.getIssueTypeObject().getName()
 
     //we only consider changes of workflow status for sub tasks
-    if(issueType == issueTypeNameSubTasks){
+    if(issueType == cm.getIssueTypeNameSubTasks()){
 
         def story
         def storyWfStatus
@@ -68,9 +59,9 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
         }
 
-        wfStatusNameDoneExists = setSubTaskWfStatusNames.contains(constantWfStatusDone)
-        wfStatusNameInProgessExists = setSubTaskWfStatusNames.contains(constantWfStatusInProgress)
-        wfStatusNameToDoExists = setSubTaskWfStatusNames.contains(constandWfStatusToDo)
+        wfStatusNameDoneExists = setSubTaskWfStatusNames.contains(cm.getWfStatusDone())
+        wfStatusNameInProgessExists = setSubTaskWfStatusNames.contains(cm.getWfStatusInProgress())
+        wfStatusNameToDoExists = setSubTaskWfStatusNames.contains(cm.getWfStatusToDo())
 
 
         //get the WF-Status of the story and of the subtask
@@ -81,49 +72,107 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
 
         //if the status of the workflow was changed to "In Progress"
-        if(subTaskWfStatus == constantWfStatusInProgress){
+        if(subTaskWfStatus == cm.getWfStatusInProgress()) {
+
+            if (wfStatusNameInProgessExists == true && wfStatusNameDoneExists == false && storyWfStatus != subTaskWfStatus) {
 
 
-            if(storyWfStatus != subTaskWfStatus){
+                if (storyWfStatus != subTaskWfStatus) {
 
                     //transition id 21 = In Progress
 
-                    hp.setWorkflowTransition(story,21)
+                    if (environment == cm.getConstantDEV()) {
+                        hp.setWorkflowTransition(story, cm.getWfTransitionID_StartWork_11_DEV())
+                    }
+
+                    if (environment == cm.getConstantPROD()) {
+                        hp.setWorkflowTransition(story, cm.getWfTransitionID_StartWork_11_PROD())
+                    }
+
+
+                }
+
+            } else if (wfStatusNameInProgessExists == true && wfStatusNameDoneExists == true && storyWfStatus != subTaskWfStatus) {
+
+
+                if (storyWfStatus != subTaskWfStatus) {
+
+                    //transition id 21 = In Progress
+
+                    if (environment == cm.getConstantDEV()) {
+                        hp.setWorkflowTransition(story, cm.getWfTransitionID_RestartWork_41_DEV())
+                    }
+
+                    if (environment == cm.getConstantPROD()) {
+                        hp.setWorkflowTransition(story, cm.getWfTranstionID_RestartWork_101_PROD())
+                    }
+
+
+                }
+
 
             }
-
         }
 
-        else if(subTaskWfStatus == constantWfStatusDone){
+        else if(subTaskWfStatus == cm.getWfStatusDone()){
 
             if(wfStatusNameInProgessExists==false && wfStatusNameToDoExists==false && storyWfStatus != subTaskWfStatus ){
 
-                //transition in 31 = Done
-                hp.setWorkflowTransition(story,31)
+
+
+                if(environment == cm.getConstantDEV()){
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_FinalizeWork_31_DEV())
+                }
+
+                if(environment == cm.getConstantPROD()){
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_FinalizeWork_91_PROD())
+                }
+
             }
 
             if(wfStatusNameInProgessExists==false && wfStatusNameToDoExists==true && storyWfStatus != subTaskWfStatus ){
 
                 //transition in 21 = In Progress
-                hp.setWorkflowTransition(story,21)
+                if(environment == cm.getConstantDEV()){
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_StartWork_11_DEV())
+                }
+
+                if(environment == cm.getConstantPROD()){
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_StartWork_11_PROD())
+                }
+
             }
 
         }
 
 
-        else if(subTaskWfStatus == constandWfStatusToDo){
+        else if(subTaskWfStatus == cm.getWfStatusToDo()){
 
             if(wfStatusNameInProgessExists == false && wfStatusNameDoneExists==false && storyWfStatus != subTaskWfStatus){
 
                 //transition in 11 = To Do
-                hp.setWorkflowTransition(story,11)
+                if(environment == cm.getConstantDEV()){
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_CancelWork_21_DEV())
+                }
+
+                if(environment == cm.getConstantPROD()){
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_CancelWork_31_PROD())
+                }
+
 
             }
 
             else if(wfStatusNameInProgessExists == false && wfStatusNameDoneExists==true && storyWfStatus != subTaskWfStatus){
 
                 //transition in 21 = In Progresss
-                hp.setWorkflowTransition(story,21)
+                if(environment == cm.getConstantDEV()){
+                    hp.setWorkflowTransition(story,cm.getWfTranstionID_RestartWork_101_PROD())
+                }
+
+                if(environment == cm.getConstantPROD()){
+                    hp.setWorkflowTransition(story,cm.getWfTranstionID_RestartWork_101_PROD())
+                }
+
 
             }
 
@@ -144,13 +193,11 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
 
 def Category log = Category.getInstance("com.onresolve.jira.groovy")
+def CustomizingMngr cm = new CustomizingMngr()
 
 log.setLevel(org.apache.log4j.Level.OFF)
-
-def constDEV = "DEV"
-def constPROD = "PROD"
 
 hp = new Helper()
 
 
-main(getCurrentIssue("WF"),log,hp,constDEV)
+main(getCurrentIssue("WF"),log,hp,cm.getConstantDEV())
