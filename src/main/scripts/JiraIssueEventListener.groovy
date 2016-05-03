@@ -1095,9 +1095,9 @@ This method links two issues
 
  */
 
-def createLinksToRequirements(Issue issue, Helper hp, String environment,Category log){
+def createLinksToRequirements(Issue issue, Helper hp, String environment){
 
-    //log.info("just entered createLinksToRequirements")
+
 
     //Begin customizing
     def customFieldNameRequirementID = ".Requirement-ID"
@@ -1122,7 +1122,7 @@ def createLinksToRequirements(Issue issue, Helper hp, String environment,Categor
     for(String  issueKey : issueIDs){
 
         //possible values for the type of relatio are implemented:  "Tests", "Relates"
-        hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"add",log)
+        hp.addAndRemoveLinksToIssue(issue, hp.getIssueByKey(issueKey), "Tests", environment, "add")
 
     }
 
@@ -1130,9 +1130,9 @@ def createLinksToRequirements(Issue issue, Helper hp, String environment,Categor
 }
 
 
-def updateLinksToRequirements(Issue issue, String linkTypeName, String environment, Helper hp,Category log){
+def updateLinksToRequirements(Issue issue, String linkTypeName, String environment, Helper hp){
 
-    log.info(" Beginn of updateLinksToRequirements")
+
 
     def issueTypeNameRequirement = "Requirement"
     def customFieldNameRequirementID = ".Requirement-ID"
@@ -1184,7 +1184,7 @@ def updateLinksToRequirements(Issue issue, String linkTypeName, String environme
             toDeleteList = resultLists.get(1)
 
 
-            log.info("toAddList and toDeleteList finished")
+
 
 
 
@@ -1196,7 +1196,7 @@ def updateLinksToRequirements(Issue issue, String linkTypeName, String environme
                 for (String issueKey : toAddList){
 
 
-                    hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"add",log)
+                    hp.addAndRemoveLinksToIssue(issue, hp.getIssueByKey(issueKey), "Tests", environment, "add")
 
                     }
 
@@ -1212,7 +1212,7 @@ def updateLinksToRequirements(Issue issue, String linkTypeName, String environme
 
                 for (String issueKey : toDeleteList){
 
-                    hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"delete",log)
+                    hp.addAndRemoveLinksToIssue(issue, hp.getIssueByKey(issueKey), "Tests", environment, "delete")
                 }
 
 
@@ -1234,7 +1234,7 @@ def updateLinksToRequirements(Issue issue, String linkTypeName, String environme
 
             for (String issueKey : toDeleteList){
 
-                hp.addAndRemoveLinksToIssue(issue,hp.getIssueByKey(issueKey),"Tests",environment,"delete",log)
+                hp.addAndRemoveLinksToIssue(issue, hp.getIssueByKey(issueKey), "Tests", environment, "delete")
             }
 
 
@@ -1726,7 +1726,7 @@ def main(Issue issue, Category log, Helper hp, String environment){
 
         else if (searchResult != null && field == ".Requirement-ID"){
 
-            updateLinksToRequirements(issue,"tests",environment,hp,log)
+            updateLinksToRequirements(issue, "tests", environment, hp)
 
         }
 
@@ -1934,10 +1934,9 @@ def main(Issue issue, Category log, Helper hp, String environment){
             //True for testcase created in HP-ALM
             else if (origin == constantHPALM){
 
-                //link all requirements as defined in HP-ALM via UploadExcel
-                log.info("Before entering createLinksToRequirements Line 1939")
 
-                createLinksToRequirements(issue,hp,environment,log)
+
+                createLinksToRequirements(issue, hp, environment)
 
 
 
