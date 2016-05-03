@@ -20,14 +20,17 @@ class CustomizingMngr  {
     def wfTransitionID_RestartWork_41_DEV = 41
 
 
-    def wfTransitionID_StartWork_11_PROD = 11
-    def wfTranstionID_FlagForDeltion_61_PROD = 61
-    def wfTransitionID_CancelWork_31_PROD = 31
-    def wfTransitionID_FinalizeWork_91_PROD = 91
-    def wfTransitionID_RemoveDeletionFlag_71_PROD = 71
+    def wfTransitionID_Story_StartWork_11_PROD = 11
+    def wfTransitionID_Story_CancelWork_21_PROD = 21
+    def wfTransitionID_Story_FinishWork_31_PROD = 31
+    def wfTranstionID_Story_RestartWork_41_PROD = 41
+    def wfTranstionID_Story_FlagForDeletion_51_PROD = 51
+    def wfTransitionID_Story_RemoveDeletionFlag_61_PROD = 61
 
 
-    def wfTranstionID_RestartWork_101_PROD = 101
+
+
+
 
 
     def customFieldNameRelease = ".Release"
@@ -101,28 +104,28 @@ class CustomizingMngr  {
         return wfTransitionID_RestartWork_41_DEV
     }
 
-    def getWfTransitionID_StartWork_11_PROD() {
-        return wfTransitionID_StartWork_11_PROD
+    def getWfTransitionID_Story_StartWork_11_PROD() {
+        return wfTransitionID_Story_StartWork_11_PROD
     }
 
-    def getWfTranstionID_FlagForDeltion_61_PROD() {
-        return wfTranstionID_FlagForDeltion_61_PROD
+    def getWfTransitionID_Story_CancelWork_21_PROD() {
+        return wfTransitionID_Story_CancelWork_21_PROD
     }
 
-    def getWfTransitionID_CancelWork_31_PROD() {
-        return wfTransitionID_CancelWork_31_PROD
+    def getWfTransitionID_Story_FinishWork_31_PROD() {
+        return wfTransitionID_Story_FinishWork_31_PROD
     }
 
-    def getWfTransitionID_FinalizeWork_91_PROD() {
-        return wfTransitionID_FinalizeWork_91_PROD
+    def getWfTranstionID_Story_RestartWork_41_PROD() {
+        return wfTranstionID_Story_RestartWork_41_PROD
     }
 
-    def getWfTransitionID_RemoveDeletionFlag_71_PROD() {
-        return wfTransitionID_RemoveDeletionFlag_71_PROD
+    def getWfTranstionID_Story_FlagForDeletion_51_PROD() {
+        return wfTranstionID_Story_FlagForDeletion_51_PROD
     }
 
-    def getWfTranstionID_RestartWork_101_PROD() {
-        return wfTranstionID_RestartWork_101_PROD
+    def getWfTransitionID_Story_RemoveDeletionFlag_61_PROD() {
+        return wfTransitionID_Story_RemoveDeletionFlag_61_PROD
     }
 
     def getCustomFieldNameRelease() {

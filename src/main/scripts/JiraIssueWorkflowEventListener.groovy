@@ -79,14 +79,14 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
                 if (storyWfStatus != subTaskWfStatus) {
 
-                    //transition id 21 = In Progress
+
 
                     if (environment == cm.getConstantDEV()) {
                         hp.setWorkflowTransition(story, cm.getWfTransitionID_StartWork_11_DEV())
                     }
 
                     if (environment == cm.getConstantPROD()) {
-                        hp.setWorkflowTransition(story, cm.getWfTransitionID_StartWork_11_PROD())
+                        hp.setWorkflowTransition(story, cm.getWfTransitionID_Story_StartWork_11_PROD())
                     }
 
 
@@ -97,14 +97,14 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
                 if (storyWfStatus != subTaskWfStatus) {
 
-                    //transition id 21 = In Progress
+
 
                     if (environment == cm.getConstantDEV()) {
                         hp.setWorkflowTransition(story, cm.getWfTransitionID_RestartWork_41_DEV())
                     }
 
                     if (environment == cm.getConstantPROD()) {
-                        hp.setWorkflowTransition(story, cm.getWfTranstionID_RestartWork_101_PROD())
+                        hp.setWorkflowTransition(story, cm.getWfTranstionID_Story_RestartWork_41_PROD())
                     }
 
 
@@ -125,7 +125,7 @@ def main(Issue issue, Category log, Helper hp, String environment) {
                 }
 
                 if(environment == cm.getConstantPROD()){
-                    hp.setWorkflowTransition(story,cm.getWfTransitionID_FinalizeWork_91_PROD())
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_Story_FinishWork_31_PROD())
                 }
 
             }
@@ -138,7 +138,7 @@ def main(Issue issue, Category log, Helper hp, String environment) {
                 }
 
                 if(environment == cm.getConstantPROD()){
-                    hp.setWorkflowTransition(story,cm.getWfTransitionID_StartWork_11_PROD())
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_Story_StartWork_11_PROD())
                 }
 
             }
@@ -156,7 +156,7 @@ def main(Issue issue, Category log, Helper hp, String environment) {
                 }
 
                 if(environment == cm.getConstantPROD()){
-                    hp.setWorkflowTransition(story,cm.getWfTransitionID_CancelWork_31_PROD())
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_Story_CancelWork_21_PROD())
                 }
 
 
@@ -166,11 +166,11 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
                 //transition in 21 = In Progresss
                 if(environment == cm.getConstantDEV()){
-                    hp.setWorkflowTransition(story,cm.getWfTranstionID_RestartWork_101_PROD())
+                    hp.setWorkflowTransition(story,cm.getWfTransitionID_RestartWork_41_DEV())
                 }
 
                 if(environment == cm.getConstantPROD()){
-                    hp.setWorkflowTransition(story,cm.getWfTranstionID_RestartWork_101_PROD())
+                    hp.setWorkflowTransition(story,cm.getWfTranstionID_Story_RestartWork_41_PROD())
                 }
 
 
