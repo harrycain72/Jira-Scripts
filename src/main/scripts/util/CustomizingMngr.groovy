@@ -49,6 +49,8 @@ class CustomizingMngr  {
     def constantJIRA = "JIRA"
     def constantHPALM = "HP-ALM"
     def constantPROD ="PROD"
+    def consstantWF ="WF"
+    def constantEV = "EV"
 
     def issueTypeNameSubTasks = "Sub-task"
     def issueTypeNameStory = "Story"
@@ -70,6 +72,14 @@ class CustomizingMngr  {
     def customFieldNameOrderItemExchangeValue = ".OrderItemExchangeValue"
 
     CustomizingMngr() {
+    }
+
+    def getConsstantWF() {
+        return consstantWF
+    }
+
+    def getConstantEV() {
+        return constantEV
     }
 
     def getWfStatusInProgress() {

@@ -5,20 +5,16 @@ import util.Helper
 import util.CustomizingMngr
 
 
-/**
- * Created by roland on 10.04.16.
- */
 
-
-def getCurrentIssue(String flag){
+def getCurrentIssue(String flag,CustomizingMngr cm){
 
     def myIssue
 
-    if(flag == "WF"){
+    if(flag == cm.getConsstantWF()){
         myIssue =(Issue)issue
     }
 
-    if(flag == "EV"){
+    if(flag == cm.getConstantEV()){
         def event = event as IssueEvent
         myIssue = event.getIssue()
     }
@@ -44,9 +40,11 @@ def main(Issue issue, Category log, Helper hp, String environment) {
         def wfStatusNameDoneExists
         def wfStatusNameInProgessExists
         def wfStatusNameToDoExists
+        def wfStatusStoryCurrent
 
         //get the story relevant for this subtask
         story = hp.getStoryFromSubTask(issue)
+        wfStatusStoryCurrent = story.getStatusObject().getName()
 
         //get alll sub tasks
         listAllsubTasksForStory = hp.getAllSubTasksForStory(story)
@@ -71,10 +69,11 @@ def main(Issue issue, Category log, Helper hp, String environment) {
         subTaskWfStatus = issue.getStatusObject().getName()
 
 
+
         //if the status of the workflow was changed to "In Progress"
         if(subTaskWfStatus == cm.getWfStatusInProgress()) {
 
-            if (wfStatusNameInProgessExists == true && wfStatusNameDoneExists == false && storyWfStatus != subTaskWfStatus) {
+            if (wfStatusNameInProgessExists == true && wfStatusNameDoneExists == false && wfStatusStoryCurrent == cm.getWfStatusToDo() && storyWfStatus != subTaskWfStatus) {
 
 
                 if (storyWfStatus != subTaskWfStatus) {
@@ -92,27 +91,37 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
                 }
 
-            } else if (wfStatusNameInProgessExists == true && wfStatusNameDoneExists == true && storyWfStatus != subTaskWfStatus) {
+
+            }
+
+            if (wfStatusNameInProgessExists == true && wfStatusStoryCurrent == cm.getWfStatusDone() && storyWfStatus != subTaskWfStatus) {
 
 
-                if (storyWfStatus != subTaskWfStatus) {
+                    if (storyWfStatus != subTaskWfStatus) {
 
 
 
-                    if (environment == cm.getConstantDEV()) {
-                        hp.setWorkflowTransition(story, cm.getWfTransitionID_RestartWork_41_DEV())
+                        if (environment == cm.getConstantDEV()) {
+                            hp.setWorkflowTransition(story, cm.getWfTransitionID_RestartWork_41_DEV())
+                        }
+
+                        if (environment == cm.getConstantPROD()) {
+                            hp.setWorkflowTransition(story, cm.getWfTranstionID_Story_RestartWork_41_PROD())
+                        }
+
+
                     }
 
-                    if (environment == cm.getConstantPROD()) {
-                        hp.setWorkflowTransition(story, cm.getWfTranstionID_Story_RestartWork_41_PROD())
-                    }
-
-
-                }
 
 
             }
+
+
+
         }
+
+
+
 
         else if(subTaskWfStatus == cm.getWfStatusDone()){
 
@@ -130,18 +139,7 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
             }
 
-            if(wfStatusNameInProgessExists==false && wfStatusNameToDoExists==true && storyWfStatus != subTaskWfStatus ){
 
-                //transition in 21 = In Progress
-                if(environment == cm.getConstantDEV()){
-                    hp.setWorkflowTransition(story,cm.getWfTransitionID_StartWork_11_DEV())
-                }
-
-                if(environment == cm.getConstantPROD()){
-                    hp.setWorkflowTransition(story,cm.getWfTransitionID_Story_StartWork_11_PROD())
-                }
-
-            }
 
         }
 
@@ -157,20 +155,6 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
                 if(environment == cm.getConstantPROD()){
                     hp.setWorkflowTransition(story,cm.getWfTransitionID_Story_CancelWork_21_PROD())
-                }
-
-
-            }
-
-            else if(wfStatusNameInProgessExists == false && wfStatusNameDoneExists==true && storyWfStatus != subTaskWfStatus){
-
-                //transition in 21 = In Progresss
-                if(environment == cm.getConstantDEV()){
-                    hp.setWorkflowTransition(story,cm.getWfTransitionID_RestartWork_41_DEV())
-                }
-
-                if(environment == cm.getConstantPROD()){
-                    hp.setWorkflowTransition(story,cm.getWfTranstionID_Story_RestartWork_41_PROD())
                 }
 
 
@@ -194,10 +178,8 @@ def main(Issue issue, Category log, Helper hp, String environment) {
 
 def Category log = Category.getInstance("com.onresolve.jira.groovy")
 def CustomizingMngr cm = new CustomizingMngr()
+def hp = new Helper()
 
 log.setLevel(org.apache.log4j.Level.OFF)
 
-hp = new Helper()
-
-
-main(getCurrentIssue("WF"),log,hp,cm.getConstantDEV())
+main(getCurrentIssue("WF",cm),log,hp,cm.getConstantDEV())
